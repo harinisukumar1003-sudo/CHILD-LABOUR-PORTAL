@@ -1,0 +1,3 @@
+import { AlertTriangle } from 'lucide-react';
+
+export default function PrivacyBanner() { return <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-950"><AlertTriangle size={17} className="mt-0.5 shrink-0 text-amber-700" /><p><b>Handle with care.</b> This platform contains sensitive information about vulnerable children. Please only access what your role requires.</p></div>; }

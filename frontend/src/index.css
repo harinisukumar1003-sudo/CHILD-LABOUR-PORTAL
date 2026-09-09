@@ -1,0 +1,12 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+button, a { cursor: pointer; }
+.field { @apply mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-normal outline-none focus:border-teal-500 focus:ring-4 focus:ring-teal-50; }
+.admin-dark .bg-white { background-color: #102b2a !important; border-color: #2a514d !important; }
+.admin-dark .text-slate-900, .admin-dark .text-slate-800, .admin-dark .text-slate-700 { color: #edf7f3 !important; }
+.admin-dark .text-slate-600, .admin-dark .text-slate-500 { color: #b7d0ca !important; }
+.admin-dark .border-slate-200, .admin-dark .border-slate-100 { border-color: #2a514d !important; }

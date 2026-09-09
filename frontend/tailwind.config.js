@@ -1,0 +1,2 @@
+/** @type {import('tailwindcss').Config} */
+export default { content: ['./index.html', './src/**/*.{js,jsx}'], theme: { extend: { colors: { primary: '#0f766e', accent: '#f59e0b', danger: '#dc2626', neutral: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 500: '#64748b', 700: '#334155', 900: '#0f172a' } }, fontFamily: { sans: ['Inter', 'sans-serif'] }, boxShadow: { soft: '0 12px 35px rgba(15, 23, 42, 0.08)' } } }, plugins: [] };

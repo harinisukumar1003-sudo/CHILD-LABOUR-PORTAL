@@ -1,0 +1,7 @@
+import { Eye, EyeOff, LockKeyhole } from 'lucide-react';
+import { useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
+
+export default function SensitiveValue({ value, caseId, field = 'childName', restricted = false }) { const { id: routeId } = useParams(); const { role } = useAuth(); const shouldMask = restricted || role === 'NGO_STAFF'; const [revealed, setRevealed] = useState(!shouldMask); const reveal = async () => { await api.post('/privacy/reveal', { caseId: caseId || routeId, field }).catch(() => {}); setRevealed(true); }; if (!value) return <span className="text-slate-400">Restricted</span>; if (!shouldMask || revealed) return <span className="inline-flex items-center gap-2">{value}{shouldMask && <button onClick={() => setRevealed(false)} aria-label="Mask sensitive value" className="text-slate-400 hover:text-slate-700"><EyeOff size={14} /></button>}</span>; return <button onClick={reveal} className="inline-flex items-center gap-2 rounded-lg border border-dashed border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-800 hover:bg-amber-100"><LockKeyhole size={13} />•••• <span className="font-normal">(click to reveal, logged)</span><Eye size={14} /></button>; }

@@ -1,0 +1,5 @@
+package com.clrms.entity;
+
+public enum RehabilitationPhase {
+    MEDICAL_ASSESSMENT, EDUCATION, COUNSELLING, FAMILY_REINTEGRATION, VOCATIONAL_TRAINING, COMPLETED
+}

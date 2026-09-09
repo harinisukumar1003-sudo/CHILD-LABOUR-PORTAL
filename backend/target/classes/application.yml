@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: clrms-backend
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:3306/clrms_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 25MB
+  mail:
+    host: ${MAIL_HOST:localhost}
+server:
+  port: 8080
+app:
+  notification:
+    default-email: ${NOTIFICATION_DEFAULT_EMAIL:}
+    staff-user-ids: ${NOTIFICATION_STAFF_USER_IDS:}
+  frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  storage-dir: ${STORAGE_DIR:uploads}
+  jwt:
+    secret: ${JWT_SECRET:change-this-development-secret-to-a-long-random-value}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}

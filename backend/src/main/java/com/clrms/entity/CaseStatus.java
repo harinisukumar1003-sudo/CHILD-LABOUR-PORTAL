@@ -1,0 +1,3 @@
+package com.clrms.entity;
+
+public enum CaseStatus { REPORTED, UNDER_REVIEW, ASSIGNED, INVESTIGATING, RESCUED, REHABILITATION, CLOSED, REJECTED }

@@ -1,0 +1,26 @@
+import { Client } from '@stomp/stompjs';
+import { Bell, CalendarClock, CheckCheck, ChevronRight, FilePlus2, RefreshCcw, ShieldCheck, UserCheck } from 'lucide-react';
+import SockJS from 'sockjs-client';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import api from '../services/api';
+import { notificationColors, notificationLabels, relativeTime } from '../utils/notifications';
+import { useAuth } from '../context/AuthContext';
+
+const icons = { NEW_REPORT: FilePlus2, CASE_ASSIGNED: UserCheck, STATUS_CHANGED: RefreshCcw, FOLLOW_UP_DUE: CalendarClock, ACCOUNT_APPROVED: ShieldCheck };
+function currentUserId(user) { if (user?.id || user?.userId) return user.id || user.userId; try { const token = localStorage.getItem('clrms_token'); return JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).sub; } catch { return null; } }
+function NotificationIcon({ type }) { const Icon = icons[type] || Bell; return <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${notificationColors[type] || 'bg-slate-100 text-slate-600'}`}><Icon size={17} /></span>; }
+
+export default function NotificationBell() {
+  const navigate = useNavigate(); const { user, role } = useAuth(); const [open, setOpen] = useState(false); const [items, setItems] = useState([]); const [unread, setUnread] = useState(0);
+  const staff = ['OFFICER', 'NGO_STAFF', 'ADMIN'].includes(role); const userId = currentUserId(user);
+  const load = () => Promise.all([api.get('/notifications', { params: { page: 0, size: 8 } }), api.get('/notifications/unread-count')]).then(([list, count]) => { setItems(list.data.data?.content || []); setUnread(count.data.data || 0); }).catch(() => {});
+  useEffect(() => { if (staff) load(); }, [staff]);
+  useEffect(() => { if (!staff || !userId) return undefined; const client = new Client({ webSocketFactory: () => new SockJS(`${(import.meta.env.VITE_API_URL || 'http://localhost:8080/api').replace(/\/api$/, '')}/ws`), reconnectDelay: 5000, onConnect: () => client.subscribe(`/topic/notifications/${userId}`, frame => { const notification = JSON.parse(frame.body); setItems(current => [notification, ...current.filter(item => item.id !== notification.id)].slice(0, 8)); setUnread(current => current + 1); toast(notification.title, { icon: '!' }); }) }); client.activate(); return () => client.deactivate(); }, [staff, userId]);
+  const markAll = async () => { await api.put('/notifications/read-all').catch(() => {}); setItems(current => current.map(item => ({ ...item, isRead: true }))); setUnread(0); };
+  const select = async item => { if (!item.isRead) { await api.put(`/notifications/${item.id}/read`).catch(() => {}); setItems(current => current.map(value => value.id === item.id ? { ...value, isRead: true } : value)); setUnread(current => Math.max(0, current - 1)); } setOpen(false); if (item.relatedCaseId) navigate(`/cases/${item.relatedCaseId}`); else navigate('/notifications'); };
+  if (!staff) return null;
+  return <div className="relative"><button onClick={() => setOpen(value => !value)} aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`} className="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100"><Bell size={20} />{unread > 0 && <span className="absolute -right-1 -top-1 grid min-h-5 min-w-5 place-items-center rounded-full bg-[#c94b32] px-1 text-[10px] font-bold text-white">{unread > 99 ? '99+' : unread}</span>}</button>{open && <div className="absolute right-0 top-12 z-40 w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/15"><div className="flex items-center justify-between border-b border-slate-100 px-4 py-3.5"><div><h2 className="text-sm font-bold text-slate-800">Notifications</h2><p className="mt-0.5 text-[11px] text-slate-400">{unread ? `${unread} unread updates` : 'You are all caught up'}</p></div><button onClick={markAll} className="inline-flex items-center gap-1 text-xs font-bold text-teal-700 hover:text-teal-900"><CheckCheck size={14} />Mark all read</button></div><div className="max-h-[420px] overflow-y-auto">{items.length ? items.map(item => <button key={item.id} onClick={() => select(item)} className={`flex w-full gap-3 border-b border-slate-100 p-4 text-left transition hover:bg-slate-50 ${!item.isRead ? 'bg-teal-50/30' : ''}`}><NotificationIcon type={item.type} /><span className="min-w-0 flex-1"><span className={`block text-xs ${item.isRead ? 'font-semibold text-slate-700' : 'font-extrabold text-slate-900'}`}>{item.title || notificationLabels[item.type]}</span><span className="mt-1 block line-clamp-2 text-xs leading-5 text-slate-500">{item.message}</span><span className="mt-1.5 block text-[10px] font-semibold text-slate-400">{relativeTime(item.createdAt)}</span></span><ChevronRight size={16} className="mt-2 shrink-0 text-slate-300" /></button>) : <div className="px-6 py-12 text-center text-sm text-slate-400">No notifications yet.</div>}</div><Link to="/notifications" onClick={() => setOpen(false)} className="flex items-center justify-center gap-1 border-t border-slate-100 px-4 py-3.5 text-xs font-bold text-teal-700 hover:bg-teal-50">View all notifications <ChevronRight size={14} /></Link></div>}</div>;
+}
+export { NotificationIcon };
