@@ -9,7 +9,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
-public record CaseReportResponse(Long id, String caseNumber, Long reporterId, String childName,
+public record CaseReportResponse(Long id, String caseNumber, Long reporterId, String reporterName,
+                                 String reporterEmail, String reporterPhone, String childName,
                                  Integer approxAge, String gender, String childDescription,
                                  String locationAddress, Double latitude, Double longitude,
                                  String district, String state, String incidentDescription,
@@ -19,6 +20,7 @@ public record CaseReportResponse(Long id, String caseNumber, Long reporterId, St
                                  List<EvidenceResponse> evidence) {
     public static CaseReportResponse from(CaseReport report, boolean includeTrackingCode) {
         return new CaseReportResponse(report.getId(), report.getCaseNumber(), report.getReporterId(),
+                report.getReporterName(), report.getReporterEmail(), report.getReporterPhone(),
                 report.getChildName(), report.getApproxAge(), report.getGender(), report.getChildDescription(),
                 report.getLocationAddress(), report.getLatitude(), report.getLongitude(), report.getDistrict(),
                 report.getState(), report.getIncidentDescription(), report.getEmployerOrLocationDetails(),
@@ -29,7 +31,7 @@ public record CaseReportResponse(Long id, String caseNumber, Long reporterId, St
 
     public static CaseReportResponse forNgo(CaseReport report) {
         CaseReportResponse response = from(report, false);
-        return new CaseReportResponse(response.id(), response.caseNumber(), null, null, response.approxAge(), response.gender(),
+        return new CaseReportResponse(response.id(), response.caseNumber(), null, null, null, null, null, response.approxAge(), response.gender(),
                 response.childDescription(), response.locationAddress(), response.latitude(), response.longitude(), response.district(), response.state(),
                 response.incidentDescription(), response.employerOrLocationDetails(), response.dateOfIncident(), response.anonymous(), null,
                 response.urgencyLevel(), response.status(), response.createdAt(), response.updatedAt(), response.evidence());

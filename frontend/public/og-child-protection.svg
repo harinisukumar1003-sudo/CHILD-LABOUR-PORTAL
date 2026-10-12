@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">CLRMS — every child deserves a safe childhood</title>
+  <desc id="desc">A child stands safely between caring adults beneath a protective arch.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#073b43"/>
+      <stop offset="1" stop-color="#0d6e68"/>
+    </linearGradient>
+    <linearGradient id="arch" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f7bd4a"/>
+      <stop offset="1" stop-color="#f59e0b"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#background)"/>
+  <circle cx="1040" cy="86" r="200" fill="#fff" opacity=".04"/>
+  <circle cx="155" cy="575" r="250" fill="#fff" opacity=".035"/>
+  <path d="M770 560V310c0-135-109-244-244-244S282 175 282 310v250" fill="none" stroke="url(#arch)" stroke-linecap="round" stroke-width="22"/>
+  <circle cx="526" cy="216" r="47" fill="#f3c9a2"/>
+  <path d="M461 389c4-77 25-111 65-111s61 34 65 111l-12 112H473z" fill="#f7bd4a"/>
+  <path d="M470 356l-77 91m194-91 77 91" fill="none" stroke="#f3c9a2" stroke-linecap="round" stroke-width="24"/>
+  <circle cx="354" cy="282" r="38" fill="#bd8765"/>
+  <path d="M302 448c4-72 21-101 52-101s48 29 52 101l-8 87H310z" fill="#f2f5ef"/>
+  <path d="M318 367l-67 67m147-67 42 46" fill="none" stroke="#bd8765" stroke-linecap="round" stroke-width="21"/>
+  <circle cx="698" cy="282" r="38" fill="#8f5c42"/>
+  <path d="M646 448c4-72 21-101 52-101s48 29 52 101l-8 87H654z" fill="#91d3be"/>
+  <path d="M662 367l-42 46m122-46 67 67" fill="none" stroke="#8f5c42" stroke-linecap="round" stroke-width="21"/>
+  <text x="850" y="272" fill="#f7bd4a" font-family="Inter,Arial,sans-serif" font-size="27" font-weight="700" letter-spacing="5">CHILD LABOUR REPORTING</text>
+  <text x="850" y="340" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="57" font-weight="800">Every child</text>
+  <text x="850" y="405" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="57" font-weight="800">deserves a</text>
+  <text x="850" y="470" fill="#f7bd4a" font-family="Inter,Arial,sans-serif" font-size="57" font-weight="800">safe childhood.</text>
+  <text x="850" y="526" fill="#cbe8df" font-family="Inter,Arial,sans-serif" font-size="20" font-weight="600" letter-spacing="2">CLRMS · CARE &amp; PROTECTION</text>
+</svg>

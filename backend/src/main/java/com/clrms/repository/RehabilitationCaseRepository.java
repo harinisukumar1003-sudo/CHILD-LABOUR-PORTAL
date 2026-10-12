@@ -4,8 +4,10 @@ import com.clrms.entity.RehabilitationCase;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
+import java.util.List;
 
 public interface RehabilitationCaseRepository extends JpaRepository<RehabilitationCase, Long> {
     Optional<RehabilitationCase> findByCaseReportId(Long caseReportId);
     boolean existsByCaseReportId(Long caseReportId);
+    List<RehabilitationCase> findByCaseReportIdIn(List<Long> caseReportIds);
 }

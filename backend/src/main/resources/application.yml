@@ -15,14 +15,25 @@ spring:
       max-request-size: 25MB
   mail:
     host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:false}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS:false}
 server:
   port: 8080
 app:
+  mail:
+    from: ${MAIL_FROM:no-reply@clrms.local}
   notification:
     default-email: ${NOTIFICATION_DEFAULT_EMAIL:}
     staff-user-ids: ${NOTIFICATION_STAFF_USER_IDS:}
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
   storage-dir: ${STORAGE_DIR:uploads}
   jwt:
-    secret: ${JWT_SECRET:change-this-development-secret-to-a-long-random-value}
+    secret: ${JWT_SECRET:clrms-dev-secret-key-change-me-2026-minimum-32-bytes}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}

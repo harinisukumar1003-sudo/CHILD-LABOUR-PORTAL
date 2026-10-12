@@ -24,12 +24,101 @@ public class AdminManagementService {
     private final CaseReportRepository reports; private final CaseInvestigationLogRepository logs; private final UserRepository users; private final AuditLogRepository audit;
     public AdminManagementService(CaseReportRepository reports, CaseInvestigationLogRepository logs, UserRepository users, AuditLogRepository audit) { this.reports = reports; this.logs = logs; this.users = users; this.audit = audit; }
 
-    @Transactional(readOnly = true) public AdminDashboardOverviewResponse overview(AuthenticationUser admin) { List<CaseReport> cases = reports.findAll(); long total = cases.size(); long thisMonth = cases.stream().filter(report -> YearMonth.from(report.getCreatedAt().atZone(ZoneOffset.UTC)).equals(YearMonth.now(ZoneOffset.UTC))).count(); long resolved = cases.stream().filter(report -> report.getStatus() == CaseStatus.CLOSED).count(); List<Double> rescue = averageDurations(cases, CaseStatus.RESCUED); List<Double> closure = averageDurations(cases, CaseStatus.CLOSED); return new AdminDashboardOverviewResponse(total, thisMonth, total == 0 ? 0 : resolved * 100d / total, average(rescue), average(closure), users.countByRoleAndStatus(UserRole.OFFICER, UserStatus.ACTIVE), users.countByRoleAndStatus(UserRole.OFFICER, UserStatus.PENDING) + users.countByRoleAndStatus(UserRole.NGO_STAFF, UserStatus.PENDING)); }
+    @Transactional(readOnly = true)
+    public AdminDashboardOverviewResponse overview(AuthenticationUser admin) {
+        List<CaseReport> cases = reports.findAll();
+        List<CaseInvestigationLog> history = logs.findAll(Sort.by(Sort.Direction.ASC, "createdAt"));
+        YearMonth month = YearMonth.now(ZoneOffset.UTC);
+        Instant previousMonthEnd = month.atDay(1).atStartOfDay(ZoneOffset.UTC).toInstant().minusNanos(1);
+        long total = cases.size();
+        long active = cases.stream().filter(report -> isActive(report.getStatus())).count();
+        long rescued = cases.stream().filter(report -> isRescued(report.getStatus())).count();
+        long resolved = cases.stream().filter(report -> report.getStatus() == CaseStatus.CLOSED).count();
+        long thisMonth = cases.stream().filter(report -> YearMonth.from(report.getCreatedAt().atZone(ZoneOffset.UTC)).equals(month)).count();
+        long lastMonthCases = cases.stream().filter(report -> YearMonth.from(report.getCreatedAt().atZone(ZoneOffset.UTC)).equals(month.minusMonths(1))).count();
+        Snapshot previous = snapshot(cases, history, previousMonthEnd);
+        double resolutionRate = total == 0 ? 0 : resolved * 100d / total;
+        double previousResolutionRate = previous.total == 0 ? 0 : previous.resolved * 100d / previous.total;
+        List<Double> rescueDurations = averageDurations(cases, CaseStatus.RESCUED);
+        List<Double> closureDurations = averageDurations(cases, CaseStatus.CLOSED);
+        return new AdminDashboardOverviewResponse(
+            total, active, rescued, thisMonth, resolutionRate, average(rescueDurations), average(closureDurations),
+            users.countByRoleAndStatus(UserRole.OFFICER, UserStatus.ACTIVE),
+            users.countByRoleAndStatus(UserRole.OFFICER, UserStatus.PENDING)
+                + users.countByRoleAndStatus(UserRole.NGO_STAFF, UserStatus.PENDING),
+            percentChange(thisMonth, lastMonthCases),
+            percentChange(active, previous.active),
+            percentChange(rescued, previous.rescued),
+            resolutionRate - previousResolutionRate
+        );
+    }
+
+    private Snapshot snapshot(List<CaseReport> cases, List<CaseInvestigationLog> history, Instant asOf) {
+        Map<Long, CaseStatus> latestStatus = new HashMap<>();
+        for (CaseInvestigationLog log : history) {
+            if (log.getCreatedAt().isAfter(asOf)) break;
+            latestStatus.put(log.getCaseReportId(), log.getNewStatus());
+        }
+        long total = 0;
+        long active = 0;
+        long rescued = 0;
+        long resolved = 0;
+        for (CaseReport report : cases) {
+            if (report.getCreatedAt().isAfter(asOf)) continue;
+            total++;
+            CaseStatus status = latestStatus.getOrDefault(report.getId(), CaseStatus.REPORTED);
+            if (isActive(status)) active++;
+            if (isRescued(status)) rescued++;
+            if (status == CaseStatus.CLOSED) resolved++;
+        }
+        return new Snapshot(total, active, rescued, resolved);
+    }
+
+    private boolean isActive(CaseStatus status) {
+        return status != CaseStatus.CLOSED && status != CaseStatus.REJECTED;
+    }
+
+    private boolean isRescued(CaseStatus status) {
+        return status == CaseStatus.RESCUED || status == CaseStatus.REHABILITATION || status == CaseStatus.CLOSED;
+    }
+
+    private double percentChange(long current, long previous) {
+        if (previous == 0) return current == 0 ? 0 : 100;
+        return (current - previous) * 100d / previous;
+    }
+
+    private record Snapshot(long total, long active, long rescued, long resolved) { }
     @Transactional(readOnly = true)
     @SuppressWarnings("null")
     public List<AdminChartPointResponse> byStatus(AuthenticationUser admin) { return reports.findAll().stream().collect(Collectors.groupingBy(CaseReport::getStatus, () -> new EnumMap<>(CaseStatus.class), Collectors.counting())).entrySet().stream().map(entry -> new AdminChartPointResponse(entry.getKey().name(), entry.getValue())).toList(); }
     @Transactional(readOnly = true) public List<AdminChartPointResponse> byDistrict(AuthenticationUser admin) { return reports.findAll().stream().collect(Collectors.groupingBy(report -> unknown(report.getDistrict()), Collectors.counting())).entrySet().stream().sorted(Map.Entry.<String, Long>comparingByValue().reversed()).map(entry -> new AdminChartPointResponse(entry.getKey(), entry.getValue())).toList(); }
-    @Transactional(readOnly = true) public List<AdminTrendPointResponse> trend(AuthenticationUser admin) { YearMonth start = YearMonth.now(ZoneOffset.UTC).minusMonths(11); Map<YearMonth, List<CaseReport>> grouped = reports.findAll().stream().filter(report -> !YearMonth.from(report.getCreatedAt().atZone(ZoneOffset.UTC)).isBefore(start)).collect(Collectors.groupingBy(report -> YearMonth.from(report.getCreatedAt().atZone(ZoneOffset.UTC)))); return java.util.stream.Stream.iterate(start, month -> month.plusMonths(1)).limit(12).map(month -> { List<CaseReport> monthCases = grouped.getOrDefault(month, List.of()); return new AdminTrendPointResponse(month.toString(), monthCases.size(), monthCases.stream().filter(report -> report.getStatus() == CaseStatus.CLOSED).count()); }).toList(); }
+    @Transactional(readOnly = true)
+    public List<AdminTrendPointResponse> trend(AuthenticationUser admin) {
+        YearMonth start = YearMonth.now(ZoneOffset.UTC).minusMonths(11);
+        Instant from = start.atDay(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant to = start.plusMonths(12).atDay(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        Map<YearMonth, Long> reportsByMonth = reports.findAll().stream()
+                .filter(report -> {
+                    YearMonth month = YearMonth.from(report.getCreatedAt().atZone(ZoneOffset.UTC));
+                    return !month.isBefore(start) && month.isBefore(start.plusMonths(12));
+                })
+                .collect(Collectors.groupingBy(
+                        report -> YearMonth.from(report.getCreatedAt().atZone(ZoneOffset.UTC)),
+                        Collectors.counting()));
+        Map<YearMonth, Long> resolutionsByMonth = logs.findAll().stream()
+                .filter(log -> log.getNewStatus() == CaseStatus.CLOSED)
+                .filter(log -> !log.getCreatedAt().isBefore(from) && log.getCreatedAt().isBefore(to))
+                .collect(Collectors.groupingBy(
+                        log -> YearMonth.from(log.getCreatedAt().atZone(ZoneOffset.UTC)),
+                        Collectors.counting()));
+        return java.util.stream.Stream.iterate(start, month -> month.plusMonths(1))
+                .limit(12)
+                .map(month -> new AdminTrendPointResponse(
+                        month.toString(),
+                        reportsByMonth.getOrDefault(month, 0L),
+                        resolutionsByMonth.getOrDefault(month, 0L)))
+                .toList();
+    }
 
     @Transactional(readOnly = true)
     @SuppressWarnings("null")

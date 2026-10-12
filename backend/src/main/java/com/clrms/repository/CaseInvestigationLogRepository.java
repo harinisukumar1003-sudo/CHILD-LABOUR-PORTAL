@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface CaseInvestigationLogRepository extends JpaRepository<CaseInvestigationLog, Long> {
     List<CaseInvestigationLog> findByCaseReportIdOrderByCreatedAtAsc(Long caseReportId);
+    List<CaseInvestigationLog> findByCaseReportIdInOrderByCreatedAtDesc(List<Long> caseReportIds);
 }

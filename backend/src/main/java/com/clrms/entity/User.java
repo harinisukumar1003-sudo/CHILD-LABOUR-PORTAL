@@ -20,12 +20,21 @@ public class User {
     private String name;
     @Column(nullable = false, unique = true, length = 180)
     private String email;
+    @Column(length = 100)
+    private String passwordHash;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20)
     private UserRole role;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20)
     private UserStatus status;
     @Column(length = 120)
     private String district;
+    @Column(length = 180)
+    private String organization;
+    @Column(length = 120)
+    private String designation;
+    @Column(length = 64)
+    private String passwordResetTokenHash;
+    private Instant passwordResetExpiresAt;
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 

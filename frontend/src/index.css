@@ -1,12 +1,24 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+h1, h2, h3, h4 { font-family: 'Manrope', 'Inter', sans-serif; }
 button, a { cursor: pointer; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }
+.tour-target-highlight { position: relative; z-index: 10; outline: 4px solid #f59e0b !important; outline-offset: 4px; border-radius: 1rem; }
+.admin-dark .tour-target-highlight { outline-color: #fbbf24 !important; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
 .field { @apply mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-normal outline-none focus:border-teal-500 focus:ring-4 focus:ring-teal-50; }
 .admin-dark .bg-white { background-color: #102b2a !important; border-color: #2a514d !important; }
 .admin-dark .text-slate-900, .admin-dark .text-slate-800, .admin-dark .text-slate-700 { color: #edf7f3 !important; }
 .admin-dark .text-slate-600, .admin-dark .text-slate-500 { color: #b7d0ca !important; }
 .admin-dark .border-slate-200, .admin-dark .border-slate-100 { border-color: #2a514d !important; }
+.admin-dark .bg-slate-50, .admin-dark [class*="bg-slate-50/"] { background-color: #0d2423 !important; }
+.admin-dark .bg-slate-100 { background-color: #193a36 !important; }
+.admin-dark .text-slate-400 { color: #91aaa5 !important; }
+.admin-dark .text-slate-300 { color: #76918b !important; }
+.admin-dark .border-slate-50 { border-color: #203c38 !important; }
+.admin-dark .border-amber-100 { border-color: #594921 !important; }
+.admin-dark .border-amber-200 { border-color: #705a25 !important; }

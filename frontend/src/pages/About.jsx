@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import PublicNavbar from '../components/PublicNavbar';
 import { motion } from 'framer-motion';
 import {
   ShieldCheck,
@@ -7,8 +8,6 @@ import {
   Users,
   BarChart3,
   FileText,
-  TrendingUp,
-  Zap,
   Send,
   AlertCircle,
   CheckCircle2,
@@ -167,7 +166,7 @@ const ContactForm = () => {
       await api.post('/public/contact', formData);
       setSubmitted(true);
       setFormData({ name: '', email: '', message: '' });
-      toast.success('Message sent! We'll get back to you soon.');
+      toast.success("Message sent! We'll get back to you soon.");
       setTimeout(() => setSubmitted(false), 3000);
     } catch (error) {
       toast.error('Failed to send message. Please try again.');
@@ -251,36 +250,14 @@ const ContactForm = () => {
 };
 
 export default function About() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    if (pathname === '/contact') document.getElementById('contact-form')?.scrollIntoView({ behavior: 'smooth' });
+  }, [pathname]);
+
   return (
     <main className="min-h-screen bg-[#fffaf2] text-slate-900">
-      {/* Navigation */}
-      <nav className="sticky top-0 z-40 flex items-center justify-between border-b border-amber-100 bg-white/90 px-5 py-4 backdrop-blur sm:px-10">
-        <Link to="/" className="flex items-center gap-3">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#0b4f4b] text-amber-300">
-            <ShieldCheck size={21} />
-          </span>
-          <span>
-            <strong className="block tracking-tight">CLRMS</strong>
-            <small className="text-[10px] uppercase tracking-[.18em] text-teal-700">
-              Care & protection
-            </small>
-          </span>
-        </Link>
-        <div className="flex items-center gap-3 text-sm font-semibold">
-          <Link to="/" className="hidden text-slate-600 hover:text-[#0b4f4b] sm:block">
-            Home
-          </Link>
-          <Link to="/report-case" className="hidden text-slate-600 hover:text-[#0b4f4b] sm:block">
-            Report
-          </Link>
-          <Link
-            to="/login"
-            className="inline-flex items-center gap-2 rounded-xl bg-[#c94b32] px-4 py-2.5 text-white shadow-sm transition hover:bg-[#a83d2a]"
-          >
-            Sign in
-          </Link>
-        </div>
-      </nav>
+      <PublicNavbar />
 
       {/* Hero Section */}
       <motion.section
@@ -344,21 +321,20 @@ export default function About() {
               </div>
             </motion.div>
 
-            {/* Illustration Placeholder */}
+            {/* Mission and vision illustration */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8 }}
               viewport={{ once: true }}
-              className="relative"
+              className="overflow-hidden rounded-3xl border border-amber-100 bg-[#fff4df] p-3 shadow-2xl shadow-teal-950/20 sm:p-5"
             >
-              <div className="aspect-square rounded-3xl bg-gradient-to-br from-[#0b4f4b] to-[#0d6e68] shadow-2xl shadow-teal-950/20" />
-              <div className="absolute inset-0 flex items-center justify-center rounded-3xl">
-                <div className="text-center">
-                  <Heart size={64} className="mx-auto text-amber-300 opacity-50" />
-                  <p className="mt-4 text-white opacity-50">Mission & Vision Illustration</p>
-                </div>
-              </div>
+              <img
+                src="/mission-vision-child-protection.png"
+                alt="An illustration contrasting a child at school with a child carrying a heavy load, alongside a call to stand against child labour."
+                className="mx-auto h-auto w-full rounded-2xl object-contain"
+                loading="lazy"
+              />
             </motion.div>
           </div>
         </div>

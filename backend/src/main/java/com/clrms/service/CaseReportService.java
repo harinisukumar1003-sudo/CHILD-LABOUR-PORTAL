@@ -32,11 +32,16 @@ public class CaseReportService {
     }
 
     @Transactional
-    public CaseReportResponse create(CaseReportRequest request, List<MultipartFile> files, Authentication authentication) {
+    public CaseReportResponse create(CaseReportRequest request, Authentication authentication) {
         Long reporterId = reporterIdForSubmission(request.isAnonymous(), authentication);
         CaseReport report = new CaseReport();
         report.setReporterId(reporterId);
         report.setAnonymous(request.isAnonymous());
+        if (!request.isAnonymous()) {
+            report.setReporterName(clean(request.getReporterName()));
+            report.setReporterEmail(clean(request.getReporterEmail()));
+            report.setReporterPhone(clean(request.getReporterPhone()));
+        }
         report.setChildName(clean(request.getChildName()));
         report.setApproxAge(request.getApproxAge());
         report.setGender(request.getGender());
@@ -55,7 +60,7 @@ public class CaseReportService {
         report.setCaseNumber(generateCaseNumber());
         if (request.isAnonymous()) report.setTrackingCode(generateTrackingCode());
 
-        for (MultipartFile file : files == null ? List.<MultipartFile>of() : files) {
+        for (MultipartFile file : request.getFiles() == null ? List.<MultipartFile>of() : request.getFiles()) {
             CaseEvidence evidence = new CaseEvidence();
             evidence.setCaseReport(report);
             evidence.setFileUrl(storage.store(file));
@@ -66,6 +71,36 @@ public class CaseReportService {
         CaseReport saved = repository.save(report);
         eventPublisher.publishEvent(new NewCaseReportedEvent(saved, saved.getId(), saved.getCaseNumber()));
         return CaseReportResponse.from(saved, request.isAnonymous());
+    }
+
+    @Transactional
+    public CaseReportResponse.EvidenceResponse addAudioEvidence(Long id, MultipartFile file, String trackingCode,
+                                                                 Authentication authentication) {
+        if (id == null) throw new IllegalArgumentException("Report id is required");
+        CaseReport report = repository.findById(id).orElseThrow(() ->
+                new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Report not found"));
+        if (report.isAnonymous()) {
+            if (trackingCode == null || report.getTrackingCode() == null || !java.security.MessageDigest.isEqual(
+                    trackingCode.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                    report.getTrackingCode().getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
+                throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Report not found");
+            }
+        } else if (!java.util.Objects.equals(currentUserId(authentication), report.getReporterId())
+                && !hasRole(authentication, "ADMIN") && !hasRole(authentication, "OFFICER")) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN, "You cannot add evidence to this report");
+        }
+
+        if (file == null || file.isEmpty() || !isAudioFile(file)) {
+            throw new IllegalArgumentException("Upload an audio recording in webm, mp3, wav, or m4a format");
+        }
+        CaseEvidence evidence = new CaseEvidence();
+        evidence.setCaseReport(report);
+        evidence.setFileUrl(storage.store(file));
+        evidence.setFileType(EvidenceFileType.AUDIO);
+        evidence.setUploadedBy(report.isAnonymous() ? null : currentUserId(authentication));
+        report.getEvidence().add(evidence);
+        repository.saveAndFlush(report);
+        return new CaseReportResponse.EvidenceResponse(evidence.getId(), evidence.getFileUrl(), evidence.getFileType(), evidence.getUploadedAt(), evidence.getUploadedBy());
     }
 
     @Transactional(readOnly = true)
@@ -136,10 +171,18 @@ public class CaseReportService {
     }
 
     private EvidenceFileType fileType(MultipartFile file) {
-        @SuppressWarnings("null")
-        String name = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase();
-        if (name.endsWith(".jpg") || name.endsWith(".png")) return EvidenceFileType.IMAGE;
-        if (name.endsWith(".mp4")) return EvidenceFileType.VIDEO;
+        String originalFilename = file.getOriginalFilename();
+        String filenameLowercase = originalFilename == null ? "" : originalFilename.toLowerCase(java.util.Locale.ROOT);
+        if (filenameLowercase.endsWith(".jpg") || filenameLowercase.endsWith(".jpeg") || filenameLowercase.endsWith(".png")) return EvidenceFileType.IMAGE;
+        if (filenameLowercase.endsWith(".mp4")) return EvidenceFileType.VIDEO;
+        if (isAudioFile(file)) return EvidenceFileType.AUDIO;
         return EvidenceFileType.DOCUMENT;
+    }
+
+    private boolean isAudioFile(MultipartFile file) {
+        String originalFilename = file.getOriginalFilename();
+        String filenameLowercase = originalFilename == null ? "" : originalFilename.toLowerCase(java.util.Locale.ROOT);
+        return filenameLowercase.endsWith(".webm") || filenameLowercase.endsWith(".mp3")
+                || filenameLowercase.endsWith(".wav") || filenameLowercase.endsWith(".m4a");
     }
 }

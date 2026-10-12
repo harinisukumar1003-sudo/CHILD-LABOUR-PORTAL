@@ -27,6 +27,15 @@ public class CaseReport {
     private Long reporterId;
     @Convert(converter = SensitiveDataConverter.class)
     @Column(length = 512)
+    private String reporterName;
+    @Convert(converter = SensitiveDataConverter.class)
+    @Column(length = 512)
+    private String reporterEmail;
+    @Convert(converter = SensitiveDataConverter.class)
+    @Column(length = 512)
+    private String reporterPhone;
+    @Convert(converter = SensitiveDataConverter.class)
+    @Column(length = 512)
     private String childName;
     private Integer approxAge;
     private String gender;

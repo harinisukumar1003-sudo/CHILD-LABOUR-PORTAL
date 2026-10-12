@@ -5,8 +5,6 @@ import {
   ArrowRight,
   CheckCircle2,
   FilePlus2,
-  HeartHandshake,
-  MapPin,
   ShieldCheck,
   Heart,
   Users,
@@ -18,6 +16,7 @@ import {
   Globe,
 } from 'lucide-react';
 import api from '../services/api';
+import PublicNavbar from '../components/PublicNavbar';
 
 const AnimatedCounter = ({ target, duration = 2 }) => {
   const [count, setCount] = useState(0);
@@ -111,7 +110,7 @@ export default function PublicLanding() {
           ongoingRehabilitation: response.data.ongoingRehabilitation || 456,
           activeOfficers: response.data.activeOfficers || 89,
         });
-      } catch (error) {
+      } catch {
         console.log('Using default stats');
         setStats({
           casesReported: 2847,
@@ -128,38 +127,7 @@ export default function PublicLanding() {
 
   return (
     <main className="min-h-screen bg-[#fffaf2] text-slate-900">
-      {/* Navigation */}
-      <nav className="sticky top-0 z-40 flex items-center justify-between border-b border-amber-100 bg-white/90 px-5 py-4 backdrop-blur sm:px-10">
-        <Link to="/" className="flex items-center gap-3">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#0b4f4b] text-amber-300">
-            <ShieldCheck size={21} />
-          </span>
-          <span>
-            <strong className="block tracking-tight">CLRMS</strong>
-            <small className="text-[10px] uppercase tracking-[.18em] text-teal-700">
-              Care & protection
-            </small>
-          </span>
-        </Link>
-        <div className="flex items-center gap-3 text-sm font-semibold">
-          <Link to="/about" className="hidden text-slate-600 hover:text-[#0b4f4b] sm:block">
-            About
-          </Link>
-          <Link to="/track-case" className="hidden text-slate-600 hover:text-[#0b4f4b] sm:block">
-            Track a case
-          </Link>
-          <Link to="/login" className="hidden text-slate-600 hover:text-[#0b4f4b] sm:block">
-            Sign in
-          </Link>
-          <Link
-            to="/report-case"
-            className="inline-flex items-center gap-2 rounded-xl bg-[#c94b32] px-4 py-2.5 text-white shadow-sm transition hover:bg-[#a83d2a]"
-          >
-            <FilePlus2 size={17} />
-            Report Now
-          </Link>
-        </div>
-      </nav>
+      <PublicNavbar />
 
       {/* Hero Section */}
       <motion.section

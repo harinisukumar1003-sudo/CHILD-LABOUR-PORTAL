@@ -32,10 +32,18 @@ public class CaseReportController {
     @PostMapping(consumes = "multipart/form-data")
     @PreAuthorize("permitAll()")
     public ResponseEntity<ApiResponse<CaseReportResponse>> create(@Valid @ModelAttribute CaseReportRequest request,
-                                                                    @RequestPart(value = "files", required = false) List<MultipartFile> files,
                                                                     Authentication authentication) {
-        CaseReportResponse response = service.create(request, files, authentication);
+        CaseReportResponse response = service.create(request, authentication);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Report submitted", response));
+    }
+
+    @PostMapping(path = "/{id}/evidence/audio", consumes = "multipart/form-data")
+    @PreAuthorize("permitAll()")
+    public ApiResponse<CaseReportResponse.EvidenceResponse> addAudioEvidence(@PathVariable Long id,
+                                                                              @RequestPart("file") MultipartFile file,
+                                                                              @RequestParam(required = false) String trackingCode,
+                                                                              Authentication authentication) {
+        return ApiResponse.success("Audio evidence uploaded", service.addAudioEvidence(id, file, trackingCode, authentication));
     }
 
     @GetMapping("/my-reports")
