@@ -6,6 +6,6 @@ import NgoDashboard from './NgoDashboard';
 export default function Dashboard() {
   const { role } = useAuth();
   if (role === 'CITIZEN') return <CitizenDashboard />;
-  if (role === 'NGO_STAFF') return <NgoDashboard />;
+  if (role === 'NGO_STAFF' || role === 'NGO_OFFICIAL') return <NgoDashboard />;
   return <OfficerDashboard />;
 }

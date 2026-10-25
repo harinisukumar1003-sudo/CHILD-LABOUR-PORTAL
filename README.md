@@ -2,9 +2,12 @@
 
 CLRMS remains the existing React/Tailwind and Spring Boot/MySQL application. Schema updates use the configured Hibernate `ddl-auto: update` setting.
 
-## Demo account seeding
+## Demo account seeding & Quick Demo Login
 
-Demo accounts are inserted only when `app.seed-demo-data=true` and the `users` table is empty. Set `app.seed-demo-data=true` (or env var `SEED_DEMO_DATA=true`) and `app.seed-password` (default `Demo@12345`) before starting the backend. Passwords are stored exclusively as BCrypt hashes.
+- `app.demo-login-enabled`: Controls whether the Quick Demo Login panel on the Login page and its public endpoints (`GET /api/auth/demo-accounts` and `POST /api/auth/demo-login`) are active. Defaults to `false` in base `application.yml`, enabled (`true`) in `application-dev.yml` or via environment variable `APP_DEMO_LOGIN_ENABLED=true`.
+  - `GET /api/auth/demo-accounts`: Returns the list of active demo accounts (id, displayName, role, state/organization, email) with no passwords or hashes. Returns 403 when `app.demo-login-enabled=false`.
+  - `POST /api/auth/demo-login`: Accepts `{"userId": <id>}` and issues standard JWT session credentials for flagged demo accounts (`is_demo_account = true`). Returns 403 for non-demo users or when disabled. Rate-limited to 20 requests per minute per IP and records an audit log entry with action `DEMO_LOGIN`.
+- `app.seed-demo-data`: Demo accounts are inserted only when `app.seed-demo-data=true` and the `users` table is empty. Set `app.seed-demo-data=true` (or env var `SEED_DEMO_DATA=true`) and `app.seed-password` (default `Demo@12345`) before starting the backend. Passwords are stored exclusively as BCrypt hashes, and seeded accounts are marked with `is_demo_account = true`. Real registered users are never flagged as demo accounts.
 
 > **Important Note:** All demo accounts (Admin, Officers, NGO Officials, and Citizen) and organization names listed below are strictly mock sample/demo entities for testing and development purposes. They do not represent real people, official staff members, or verified organizations.
 

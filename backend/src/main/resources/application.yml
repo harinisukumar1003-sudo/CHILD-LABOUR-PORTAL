@@ -27,6 +27,7 @@ spring:
 server:
   port: 8080
 app:
+  demo-login-enabled: ${APP_DEMO_LOGIN_ENABLED:false}
   seed-demo-data: ${SEED_DEMO_DATA:${APP_SEED_DEMO_DATA:true}}
   seed-password: ${SEED_PASSWORD:${APP_SEED_PASSWORD:Demo@12345}}
   mail:

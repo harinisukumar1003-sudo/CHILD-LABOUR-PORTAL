@@ -53,6 +53,7 @@ public class DemoAccountConfiguration {
             admin.setRole(UserRole.ADMIN);
             admin.setStatus(UserStatus.ACTIVE);
             admin.setDesignation("Chief Administrator");
+            admin.setDemoAccount(true);
             users.save(admin);
 
             // 2. 5 OFFICERS
@@ -75,6 +76,7 @@ public class DemoAccountConfiguration {
                 officerUser.setState(seed.state());
                 officerUser.setOrganization("Child Protection Unit");
                 officerUser.setDesignation("Child Protection Officer");
+                officerUser.setDemoAccount(true);
                 User savedOfficer = users.save(officerUser);
 
                 OfficerProfile profile = new OfficerProfile();
@@ -115,16 +117,18 @@ public class DemoAccountConfiguration {
                 ngoUser.setOrganization(seed.ngoName());
                 ngoUser.setNgoOrganizationId(savedNgo.getId());
                 ngoUser.setDesignation("Rehabilitation Coordinator");
+                ngoUser.setDemoAccount(true);
                 users.save(ngoUser);
             }
 
             // 4. 1 CITIZEN
             User citizen = new User();
-            citizen.setName("Citizen User");
+            citizen.setName("Demo Citizen");
             citizen.setEmail("citizen@clrms.local");
             citizen.setPasswordHash(passwordHash);
             citizen.setRole(UserRole.CITIZEN);
             citizen.setStatus(UserStatus.ACTIVE);
+            citizen.setDemoAccount(true);
             users.save(citizen);
 
             log.info("Demo accounts seeded successfully: 1 ADMIN, 5 OFFICERS (linked to officer_profiles), 5 NGO OFFICIALS (linked to ngo_organizations), 1 CITIZEN.");

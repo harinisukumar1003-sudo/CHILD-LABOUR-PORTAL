@@ -39,6 +39,8 @@ public class User {
     @Column(length = 64)
     private String passwordResetTokenHash;
     private Instant passwordResetExpiresAt;
+    @Column(name = "is_demo_account", nullable = false)
+    private boolean isDemoAccount = false;
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 

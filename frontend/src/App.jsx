@@ -99,7 +99,7 @@ function App() {
                     <Route path="/officer/dashboard" element={<Dashboard />} />
                   </Route>
                 </Route>
-                <Route element={<RoleBasedRoute roles={['NGO_STAFF', 'ADMIN']} />}>
+                <Route element={<RoleBasedRoute roles={['NGO_STAFF', 'NGO_OFFICIAL', 'ADMIN']} />}>
                   <Route path="/rehabilitation" element={<RehabilitationManagement />} />
                   <Route path="/rehabilitation/:id" element={<RehabilitationDetail />} />
                   <Route path="/rehabilitation/follow-ups" element={<RehabilitationFollowUps />} />

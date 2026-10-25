@@ -8,7 +8,7 @@ const api = axios.create({ baseURL: API_BASE_URL });
 api.interceptors.request.use((config) => { const token = localStorage.getItem('clrms_token'); if (token) config.headers.Authorization = `Bearer ${token}`; return config; });
 api.interceptors.response.use((response) => response, (error) => {
   const url = error.config?.url || '';
-  const isPublicAuthRequest = /^\/auth\/(login|register|forgot-password|reset-password)(?:\/|$)/.test(url);
+  const isPublicAuthRequest = /^\/auth\/(login|register|forgot-password|reset-password|demo-accounts|demo-login)(?:\/|$)/.test(url);
   if (error.response?.status === 401 && localStorage.getItem('clrms_token') && !isPublicAuthRequest) {
     localStorage.removeItem('clrms_token');
     window.location.href = '/login';

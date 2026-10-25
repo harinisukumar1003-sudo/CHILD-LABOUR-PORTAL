@@ -26,12 +26,12 @@ import PrivacyBanner from '../components/PrivacyBanner';
 import { dashboardPathForRole } from '../utils/roles';
 
 const menu = [
-  { label: 'Overview', icon: LayoutDashboard, roles: ['CITIZEN', 'OFFICER', 'NGO_STAFF', 'ADMIN'], destination: 'dashboard' },
+  { label: 'Overview', icon: LayoutDashboard, roles: ['CITIZEN', 'OFFICER', 'NGO_STAFF', 'NGO_OFFICIAL', 'ADMIN'], destination: 'dashboard' },
   { label: 'My reports', icon: FileText, to: '/citizen/my-reports', roles: ['CITIZEN'] },
   { label: 'Case reports', icon: FileText, to: '/cases', roles: ['OFFICER', 'ADMIN'], tour: 'case-navigation' },
-  { label: 'My rehabilitation cases', icon: HeartHandshake, to: '/rehabilitation', roles: ['NGO_STAFF', 'ADMIN'] },
-  { label: 'Rehabilitation centres', icon: BriefcaseBusiness, to: '/rehabilitation-centers', roles: ['OFFICER', 'NGO_STAFF', 'ADMIN'] },
-  { label: 'Notifications', icon: BadgeCheck, to: '/notifications', roles: ['OFFICER', 'NGO_STAFF', 'ADMIN'] },
+  { label: 'My rehabilitation cases', icon: HeartHandshake, to: '/rehabilitation', roles: ['NGO_STAFF', 'NGO_OFFICIAL', 'ADMIN'] },
+  { label: 'Rehabilitation centres', icon: BriefcaseBusiness, to: '/rehabilitation-centers', roles: ['OFFICER', 'NGO_STAFF', 'NGO_OFFICIAL', 'ADMIN'] },
+  { label: 'Notifications', icon: BadgeCheck, to: '/notifications', roles: ['OFFICER', 'NGO_STAFF', 'NGO_OFFICIAL', 'ADMIN'] },
   { label: 'User accounts', icon: Users, to: '/admin/users', roles: ['ADMIN'] },
   { label: 'Inquiries & Volunteers', icon: HeartHandshake, to: '/admin/submissions', roles: ['ADMIN'] },
   { label: 'Pending approvals', icon: BadgeCheck, to: '/admin/dashboard#pending-approvals', roles: ['ADMIN'] },
@@ -136,7 +136,7 @@ export default function AppShell() {
           </div>
         </header>
         <main className="mx-auto max-w-[1500px] p-4 sm:p-6 lg:p-8">
-          {['OFFICER', 'NGO_STAFF', 'ADMIN'].includes(role) && <PrivacyBanner />}
+          {['OFFICER', 'NGO_STAFF', 'NGO_OFFICIAL', 'ADMIN'].includes(role) && <PrivacyBanner />}
           <div data-tour="dashboard-overview"><Outlet /></div>
         </main>
         <footer className={`flex flex-wrap items-center justify-between gap-4 px-5 py-5 text-xs sm:px-8 ${adminDark ? 'text-slate-400' : 'text-slate-400'}`}>

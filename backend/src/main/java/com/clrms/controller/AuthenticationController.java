@@ -7,6 +7,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/auth")
 public class AuthenticationController {
@@ -14,6 +17,23 @@ public class AuthenticationController {
 
     public AuthenticationController(AuthenticationService authentication) {
         this.authentication = authentication;
+    }
+
+    @GetMapping("/demo-accounts")
+    public ApiResponse<List<DemoAccountResponse>> demoAccounts() {
+        return ApiResponse.success("Demo accounts retrieved", authentication.getDemoAccounts());
+    }
+
+    @PostMapping("/demo-login")
+    public ApiResponse<AuthSessionResponse> demoLogin(@Valid @RequestBody DemoLoginRequest request,
+                                                      HttpServletRequest servletRequest) {
+        String ip = servletRequest.getHeader("X-Forwarded-For");
+        if (ip != null && !ip.isBlank()) {
+            ip = ip.split(",")[0].trim();
+        } else {
+            ip = servletRequest.getRemoteAddr();
+        }
+        return ApiResponse.success("Signed in via demo account", authentication.demoLogin(request.userId(), ip));
     }
 
     @PostMapping("/register")

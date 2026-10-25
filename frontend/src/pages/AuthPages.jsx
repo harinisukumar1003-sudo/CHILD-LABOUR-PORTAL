@@ -9,6 +9,7 @@ import Button from '../components/Button';
 import { useAuth } from '../context/AuthContext';
 import { dashboardPathForRole } from '../utils/roles';
 import api from '../services/api';
+import QuickDemoLogin from '../components/QuickDemoLogin';
 
 const fieldClass = 'mt-2 w-full rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-teal-100';
 function ErrorText({ message }) { return message ? <p className="mt-1 text-xs font-medium text-red-600">{message}</p> : null; }
@@ -19,18 +20,7 @@ export function Login() {
   const { dispatch } = useAuth();
   const [loading, setLoading] = useState(false);
   const [requestError, setRequestError] = useState('');
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm({ resolver: zodResolver(loginSchema) });
-  const demoAccounts = [
-    { label: 'Citizen', email: 'demo.citizen@clrms.example' },
-    { label: 'Officer', email: 'demo.officer@clrms.example' },
-    { label: 'NGO Staff', email: 'demo.ngo@clrms.example' },
-    { label: 'Admin', email: 'demo.admin@clrms.example' },
-  ];
-  const fillDemoCredentials = email => {
-    setValue('email', email, { shouldValidate: true });
-    setValue('password', 'Demo@12345', { shouldValidate: true });
-    setRequestError('');
-  };
+  const { register, handleSubmit, formState: { errors } } = useForm({ resolver: zodResolver(loginSchema) });
   const submit = async values => {
     setLoading(true);
     setRequestError('');
@@ -71,23 +61,7 @@ export function Login() {
       <Button type="submit" disabled={loading} className="mt-7 flex w-full items-center justify-center">{loading ? <><LoaderCircle className="mr-2 animate-spin" size={18} />Signing in...</> : 'Sign in securely'}</Button>
       <p className="mt-6 text-center text-sm text-slate-500">New to CLRMS? <Link to="/register" className="font-semibold text-primary">Create an account</Link></p>
     </form>
-    <section className="mt-7 rounded-2xl border border-teal-100 bg-teal-50/70 p-4" aria-labelledby="demo-login-title">
-      <h2 id="demo-login-title" className="text-sm font-bold text-teal-950">Local demo accounts</h2>
-      <p className="mt-1 text-xs leading-5 text-teal-900">These accounts work only when the backend is explicitly started with its demo profile.</p>
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        {demoAccounts.map(account => (
-          <button
-            key={account.email}
-            type="button"
-            onClick={() => fillDemoCredentials(account.email)}
-            className="rounded-lg border border-teal-200 bg-white px-3 py-2 text-sm font-semibold text-teal-900 hover:bg-teal-100"
-          >
-            Use {account.label}
-          </button>
-        ))}
-      </div>
-      <p className="mt-3 text-xs text-teal-900">Demo password: <code className="font-bold">Demo@12345</code></p>
-    </section>
+    <QuickDemoLogin />
   </AuthLayout>;
 }
 const citizenSchema = z.object({ name: z.string().min(2, 'Please enter your full name'), email: z.string().email('Enter a valid email address'), password: z.string().min(8, 'Password must be at least 8 characters') });
