@@ -8,10 +8,7 @@ import jakarta.validation.ValidatorFactory;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.springframework.mock.web.MockMultipartFile;
-
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -39,7 +36,7 @@ class CaseReportSubmissionValidatorTest {
                 .collect(Collectors.toSet());
 
         assertTrue(fields.containsAll(Set.of("approxAge", "gender", "childDescription", "locationAddress",
-                "district", "state", "incidentDescription", "dateOfIncident", "urgencyLevel", "files",
+                "townOrCity", "pincode", "district", "state", "incidentDescription", "dateOfIncident", "urgencyLevel",
                 "reporterName", "reporterEmail", "reporterPhone")));
     }
 
@@ -66,6 +63,38 @@ class CaseReportSubmissionValidatorTest {
         assertTrue(fields.contains("childDescription"));
     }
 
+    @Test
+    void rejectsDistrictThatDoesNotBelongToSelectedState() {
+        CaseReportRequest request = validRequest();
+        request.setDistrict("Hyderabad");
+
+        assertTrue(validator.validate(request).stream()
+                .anyMatch(violation -> violation.getPropertyPath().toString().equals("district")
+                        && violation.getMessage().contains("belong to the selected state")));
+    }
+
+    @Test
+    void acceptsDistrictFromCompleteStateDirectory() {
+        CaseReportRequest request = validRequest();
+        request.setState("Tamil Nadu");
+        request.setDistrict("Ariyalur");
+
+        assertTrue(validator.validate(request).isEmpty());
+    }
+
+    @Test
+    void rejectsInvalidTownNameAndPincode() {
+        CaseReportRequest request = validRequest();
+        request.setTownOrCity("Pune 411");
+        request.setPincode("012345");
+
+        Set<String> fields = validator.validate(request).stream()
+                .map(violation -> violation.getPropertyPath().toString())
+                .collect(Collectors.toSet());
+
+        assertTrue(fields.containsAll(Set.of("townOrCity", "pincode")));
+    }
+
     private CaseReportRequest validRequest() {
         CaseReportRequest request = new CaseReportRequest();
         request.setReporterName("Reporter");
@@ -74,12 +103,13 @@ class CaseReportSubmissionValidatorTest {
         request.setGender("Female");
         request.setChildDescription("Child has short hair and wears a blue uniform.");
         request.setLocationAddress("Near the market entrance");
-        request.setDistrict("Central District");
+        request.setTownOrCity("Pune");
+        request.setDistrict("Pune");
         request.setState("Maharashtra");
+        request.setPincode("411001");
         request.setIncidentDescription("The child has been seen working at the stall every evening.");
         request.setDateOfIncident(LocalDate.now().minusDays(1));
         request.setUrgencyLevel(UrgencyLevel.MEDIUM);
-        request.setFiles(List.of(new MockMultipartFile("files", "evidence.jpg", "image/jpeg", new byte[]{1})));
         return request;
     }
 }

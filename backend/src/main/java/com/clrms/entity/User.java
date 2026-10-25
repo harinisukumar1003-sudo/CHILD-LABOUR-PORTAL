@@ -22,14 +22,18 @@ public class User {
     private String email;
     @Column(length = 100)
     private String passwordHash;
-    @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20)
+    @Enumerated(EnumType.STRING) @Column(nullable = false, length = 32)
     private UserRole role;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20)
     private UserStatus status;
     @Column(length = 120)
+    private String state;
+    @Column(length = 120)
     private String district;
     @Column(length = 180)
     private String organization;
+    @Column(name = "ngo_organization_id")
+    private Long ngoOrganizationId;
     @Column(length = 120)
     private String designation;
     @Column(length = 64)

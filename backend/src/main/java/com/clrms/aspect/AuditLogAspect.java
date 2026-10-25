@@ -27,7 +27,9 @@ public class AuditLogAspect {
         Object result = joinPoint.proceed();
         AuditLog log = new AuditLog();
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        log.setAdminUserId(userId(authentication)); log.setAction(joinPoint.getSignature().getName().toUpperCase());
+        log.setAdminUserId(userId(authentication));
+        log.setActorRole(authentication == null ? "SYSTEM" : authentication.getAuthorities().stream().map(a -> a.getAuthority().replaceFirst("^ROLE_", "")).findFirst().orElse("UNKNOWN"));
+        log.setAction(joinPoint.getSignature().getName().toUpperCase());
         log.setTargetEntity(targetEntity(joinPoint)); log.setTargetId(targetId(joinPoint.getArgs(), result));
         log.setBeforeState(before); log.setAfterState(snapshot(result)); log.setIpAddress(ipAddress());
         audit.save(log);

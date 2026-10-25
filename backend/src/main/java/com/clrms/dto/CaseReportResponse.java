@@ -12,9 +12,9 @@ import java.util.List;
 public record CaseReportResponse(Long id, String caseNumber, Long reporterId, String reporterName,
                                  String reporterEmail, String reporterPhone, String childName,
                                  Integer approxAge, String gender, String childDescription,
-                                 String locationAddress, Double latitude, Double longitude,
-                                 String district, String state, String incidentDescription,
-                                 String employerOrLocationDetails, LocalDate dateOfIncident,
+                                 String locationAddress, String townOrCity, Double latitude, Double longitude,
+                                 String pincode, String landmark, String district, String state, String incidentDescription,
+                                 LocalDate dateOfIncident,
                                  boolean anonymous, String trackingCode, UrgencyLevel urgencyLevel,
                                  CaseStatus status, Instant createdAt, Instant updatedAt,
                                  List<EvidenceResponse> evidence) {
@@ -22,8 +22,8 @@ public record CaseReportResponse(Long id, String caseNumber, Long reporterId, St
         return new CaseReportResponse(report.getId(), report.getCaseNumber(), report.getReporterId(),
                 report.getReporterName(), report.getReporterEmail(), report.getReporterPhone(),
                 report.getChildName(), report.getApproxAge(), report.getGender(), report.getChildDescription(),
-                report.getLocationAddress(), report.getLatitude(), report.getLongitude(), report.getDistrict(),
-                report.getState(), report.getIncidentDescription(), report.getEmployerOrLocationDetails(),
+                report.getLocationAddress(), report.getTownOrCity(), report.getLatitude(), report.getLongitude(),
+                report.getPincode(), report.getLandmark(), report.getDistrict(), report.getState(), report.getIncidentDescription(),
                 report.getDateOfIncident(), report.isAnonymous(), includeTrackingCode ? report.getTrackingCode() : null,
                 report.getUrgencyLevel(), report.getStatus(), report.getCreatedAt(), report.getUpdatedAt(),
                 report.getEvidence().stream().map(EvidenceResponse::from).toList());
@@ -32,8 +32,9 @@ public record CaseReportResponse(Long id, String caseNumber, Long reporterId, St
     public static CaseReportResponse forNgo(CaseReport report) {
         CaseReportResponse response = from(report, false);
         return new CaseReportResponse(response.id(), response.caseNumber(), null, null, null, null, null, response.approxAge(), response.gender(),
-                response.childDescription(), response.locationAddress(), response.latitude(), response.longitude(), response.district(), response.state(),
-                response.incidentDescription(), response.employerOrLocationDetails(), response.dateOfIncident(), response.anonymous(), null,
+                response.childDescription(), response.locationAddress(), response.townOrCity(), response.latitude(), response.longitude(),
+                response.pincode(), response.landmark(), response.district(), response.state(),
+                response.incidentDescription(), response.dateOfIncident(), response.anonymous(), null,
                 response.urgencyLevel(), response.status(), response.createdAt(), response.updatedAt(), response.evidence());
     }
 

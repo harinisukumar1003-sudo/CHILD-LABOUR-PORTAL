@@ -21,7 +21,7 @@ public class CaseReport {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 14)
+    @Column(nullable = false, unique = true, length = 15)
     private String caseNumber;
 
     private Long reporterId;
@@ -40,20 +40,24 @@ public class CaseReport {
     private Integer approxAge;
     private String gender;
 
-    @Column(length = 2000)
+    @Column(columnDefinition = "TEXT")
     private String childDescription;
     @Convert(converter = SensitiveDataConverter.class)
-    @Column(nullable = false, length = 2000)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String locationAddress;
+    @Column(name = "town_or_city", length = 120)
+    private String townOrCity;
     private Double latitude;
     private Double longitude;
+    @Column(name = "pincode", length = 6)
+    private String pincode;
+    @Column(name = "landmark", length = 150)
+    private String landmark;
     private String district;
     private String state;
 
-    @Column(nullable = false, length = 4000)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String incidentDescription;
-    @Column(length = 2000)
-    private String employerOrLocationDetails;
     private LocalDate dateOfIncident;
 
     @Column(nullable = false)
@@ -61,7 +65,7 @@ public class CaseReport {
 
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 16)
     private UrgencyLevel urgencyLevel;
-    @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20)
+    @Enumerated(EnumType.STRING) @Column(nullable = false, length = 32)
     private CaseStatus status;
 
     @Column(unique = true, length = 64)

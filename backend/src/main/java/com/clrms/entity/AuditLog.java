@@ -17,6 +17,8 @@ public class AuditLog {
     private Long id;
     @Column(name = "admin_user_id")
     private Long adminUserId;
+    @Column(name = "actor_role", length = 20)
+    private String actorRole;
     @Column(columnDefinition = "TEXT")
     private String beforeState;
     @Column(columnDefinition = "TEXT")

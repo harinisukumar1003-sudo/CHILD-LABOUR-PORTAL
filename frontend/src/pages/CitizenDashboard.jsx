@@ -15,9 +15,11 @@ import {
   Search,
   ShieldCheck,
   Sprout,
+  Copy,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import CaseStatusTimeline from '../components/CaseStatusTimeline';
 import Modal from '../components/Modal';
@@ -78,6 +80,10 @@ function requestReports() {
 
 function ReportCard({ report, index, onViewTimeline }) {
   const { label, Icon, className } = reportStatus(report.status);
+  const copyTracking = (code) => {
+    navigator.clipboard?.writeText(code);
+    toast.success('Tracking code copied to clipboard!');
+  };
   return (
     <motion.article
       initial={{ opacity: 0, y: 14 }}
@@ -95,14 +101,41 @@ function ReportCard({ report, index, onViewTimeline }) {
           {label}
         </span>
       </div>
-      <div className="mt-6 flex items-center gap-2 text-sm text-slate-500">
+
+      {report.trackingCode && (
+        <div className="mt-3.5 flex items-center justify-between gap-2 rounded-xl border border-teal-800/10 bg-[#f7faf8] px-3.5 py-2.5">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tracking Code</p>
+            <p className="font-mono text-xs sm:text-sm font-bold text-[#0b4f4b] tracking-wide select-all">{report.trackingCode}</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => copyTracking(report.trackingCode)}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
+              title="Copy tracking code"
+            >
+              <Copy size={13} /> Copy
+            </button>
+            <Link
+              to={`/track-case?caseNumber=${encodeURIComponent(report.caseNumber)}&trackingCode=${encodeURIComponent(report.trackingCode)}`}
+              className="inline-flex items-center gap-1 rounded-lg border border-teal-700/20 bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-800 hover:bg-teal-100 transition"
+              title="Track publicly"
+            >
+              <Search size={13} /> Track
+            </Link>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-5 flex items-center gap-2 text-sm text-slate-500">
         <CalendarDays size={16} className="shrink-0 text-teal-700/70" aria-hidden="true" />
         <span>Submitted {formattedDate(report.createdAt)}</span>
       </div>
       <button
         type="button"
         onClick={() => onViewTimeline(report)}
-        className="mt-6 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-teal-800/15 bg-[#f3f9f6] px-4 py-2.5 text-sm font-semibold text-[#0b4f4b] transition hover:border-teal-800/30 hover:bg-teal-50 focus:outline-none focus:ring-4 focus:ring-teal-100"
+        className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-teal-800/15 bg-[#f3f9f6] px-4 py-2.5 text-sm font-semibold text-[#0b4f4b] transition hover:border-teal-800/30 hover:bg-teal-50 focus:outline-none focus:ring-4 focus:ring-teal-100 cursor-pointer"
       >
         View Timeline <ArrowRight size={16} aria-hidden="true" />
       </button>
@@ -318,6 +351,33 @@ export default function CitizenDashboard() {
               </div>
               <span className="text-xs text-slate-500">Submitted {formattedDate(selectedReport.createdAt)}</span>
             </div>
+
+            {selectedReport.trackingCode && (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-teal-800/10 bg-[#f7faf8] px-4 py-2.5">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tracking code for public tracker</p>
+                  <p className="font-mono text-sm font-bold text-[#0b4f4b] tracking-wide select-all">{selectedReport.trackingCode}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(selectedReport.trackingCode);
+                      toast.success('Tracking code copied!');
+                    }}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+                  >
+                    <Copy size={13} /> Copy
+                  </button>
+                  <Link
+                    to={`/track-case?caseNumber=${encodeURIComponent(selectedReport.caseNumber)}&trackingCode=${encodeURIComponent(selectedReport.trackingCode)}`}
+                    className="inline-flex items-center gap-1 rounded-lg border border-teal-700/20 bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-800 hover:bg-teal-100 transition"
+                  >
+                    <Search size={13} /> Track
+                  </Link>
+                </div>
+              </div>
+            )}
             {timelineLoading ? (
               <div className="flex items-center gap-2 rounded-xl bg-slate-50 p-4 text-sm text-slate-500" aria-live="polite">
                 <LoaderCircle size={17} className="animate-spin" /> Loading your timeline…

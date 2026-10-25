@@ -10,4 +10,5 @@ public interface RehabilitationCaseRepository extends JpaRepository<Rehabilitati
     Optional<RehabilitationCase> findByCaseReportId(Long caseReportId);
     boolean existsByCaseReportId(Long caseReportId);
     List<RehabilitationCase> findByCaseReportIdIn(List<Long> caseReportIds);
+    List<RehabilitationCase> findByAssignedCounsellorIdOrderByStartDateDesc(Long assignedCounsellorId);
 }

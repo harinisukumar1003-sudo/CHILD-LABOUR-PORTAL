@@ -21,13 +21,13 @@ public class RehabilitationActivity {
     private Long rehabilitationCaseId;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 30)
     private RehabilitationActivityType activityType;
-    @Column(nullable = false, length = 2000)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
     @Column(nullable = false, length = 180)
     private String providerName;
     @Column(nullable = false)
     private LocalDate activityDate;
-    @Column(length = 2000)
+    @Column(columnDefinition = "TEXT")
     private String outcomeNotes;
     private LocalDate nextFollowUpDate;
     @Column(nullable = false)

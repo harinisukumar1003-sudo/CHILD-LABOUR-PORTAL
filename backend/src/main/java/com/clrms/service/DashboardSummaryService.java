@@ -26,10 +26,12 @@ public class DashboardSummaryService {
                                    RehabilitationCaseRepository rehabilitationCases,
                                    RehabilitationActivityRepository activities,
                                    UserRepository users) {
+        var ngoStrategy = new NgoDashboardStrategy(reports, rehabilitationCases, activities);
         this.strategies = Map.of(
             UserRole.CITIZEN, new CitizenDashboardStrategy(reports),
             UserRole.OFFICER, new StaffDashboardStrategy(reports, assignments, logs, rehabilitationCases, activities),
-            UserRole.NGO_STAFF, new StaffDashboardStrategy(reports, assignments, logs, rehabilitationCases, activities),
+            UserRole.NGO_STAFF, ngoStrategy,
+            UserRole.NGO_OFFICIAL, ngoStrategy,
             UserRole.ADMIN, new AdminDashboardStrategy(reports, users)
         );
     }
@@ -121,7 +123,7 @@ public class DashboardSummaryService {
             }).toList();
 
             Set<CaseStatus> pendingStatuses = EnumSet.of(CaseStatus.REPORTED, CaseStatus.UNDER_REVIEW,
-                CaseStatus.ASSIGNED, CaseStatus.INVESTIGATING);
+                CaseStatus.ASSIGNED_TO_OFFICER, CaseStatus.INVESTIGATING);
             long pending = active.stream().filter(report -> pendingStatuses.contains(report.getStatus())).count();
             long critical = active.stream().filter(report -> report.getUrgencyLevel() == UrgencyLevel.CRITICAL
                 && report.getStatus() != CaseStatus.CLOSED && report.getStatus() != CaseStatus.REJECTED).count();
@@ -229,6 +231,37 @@ public class DashboardSummaryService {
                 "pendingApprovals", pendingApprovals, "casesByStatus", statusCounts(all),
                 "casesByDistrict", byDistrict, "monthlyTrend", trend,
                 "activeOfficers", users.countByRoleAndStatus(UserRole.OFFICER, UserStatus.ACTIVE));
+        }
+    }
+
+    private static final class NgoDashboardStrategy implements DashboardStrategy {
+        private final CaseReportRepository reports;
+        private final RehabilitationCaseRepository rehabilitationCases;
+        private final RehabilitationActivityRepository activities;
+        private NgoDashboardStrategy(CaseReportRepository reports, RehabilitationCaseRepository rehabilitationCases, RehabilitationActivityRepository activities) {
+            this.reports = reports; this.rehabilitationCases = rehabilitationCases; this.activities = activities;
+        }
+        @Override public Map<String, Object> summarize(Long userId) {
+            List<RehabilitationCase> assigned = rehabilitationCases.findByAssignedCounsellorIdOrderByStartDateDesc(userId);
+            Set<Long> rehabIds = assigned.stream().map(RehabilitationCase::getId).collect(Collectors.toSet());
+            List<Long> reportIds = assigned.stream().map(RehabilitationCase::getCaseReportId).toList();
+            List<CaseReport> cases = reportIds.isEmpty() ? List.of() : reports.findAllById(reportIds);
+            Map<Long, CaseReport> byId = new HashMap<>(); cases.forEach(item -> byId.put(item.getId(), item));
+            LocalDate today = LocalDate.now(ZoneOffset.UTC);
+            long pendingFollowUps = rehabIds.isEmpty() ? 0 : activities.countByRehabilitationCaseIdInAndNextFollowUpDate(rehabIds, today);
+            List<Map<String, Object>> queue = assigned.stream().map(rehab -> {
+                CaseReport report = byId.get(rehab.getCaseReportId());
+                return Map.<String, Object>of("id", rehab.getId(), "caseReportId", rehab.getCaseReportId(),
+                        "caseNumber", report == null ? "" : report.getCaseNumber(), "status", report == null ? "" : report.getStatus().name(),
+                        "phase", rehab.getCurrentPhase().name(), "startDate", rehab.getStartDate());
+            }).toList();
+            return Map.of("totalRehabilitationCases", assigned.size(),
+                    "newlyReferred", cases.stream().filter(c -> c.getStatus() == CaseStatus.NGO_ASSIGNED).count(),
+                    "inProgress", cases.stream().filter(c -> c.getStatus() == CaseStatus.REHABILITATION_IN_PROGRESS).count(),
+                    "followUpsPending", pendingFollowUps,
+                    "completed", cases.stream().filter(c -> c.getStatus() == CaseStatus.REHABILITATION_COMPLETED || c.getStatus() == CaseStatus.CLOSED).count(),
+                    "awaitingAdminReview", cases.stream().filter(c -> c.getStatus() == CaseStatus.REHABILITATION_COMPLETED).count(),
+                    "cases", queue);
         }
     }
 

@@ -1,6 +1,7 @@
 import { ArrowLeft, Home, SearchX } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import PublicNavbar from '../components/PublicNavbar';
+import Logo from '../components/Logo';
 
 export default function NotFound() {
   const navigate = useNavigate();
@@ -9,6 +10,7 @@ export default function NotFound() {
       <PublicNavbar />
       <main className="grid min-h-[70vh] place-items-center px-5 py-12">
         <section className="w-full max-w-xl rounded-3xl border border-amber-100 bg-white p-8 text-center shadow-soft sm:p-12">
+          <Logo size="lg" className="mx-auto" />
           <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-amber-50 text-amber-700"><SearchX size={27} /></span>
           <p className="mt-6 text-xs font-bold uppercase tracking-[.18em] text-amber-700">404 · Page not found</p>
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#0b4f4b]">This page isn’t here.</h1>

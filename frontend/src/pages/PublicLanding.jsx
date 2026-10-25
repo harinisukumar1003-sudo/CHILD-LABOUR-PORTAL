@@ -16,6 +16,7 @@ import {
   Globe,
 } from 'lucide-react';
 import api from '../services/api';
+import Logo from '../components/Logo';
 import PublicNavbar from '../components/PublicNavbar';
 
 const AnimatedCounter = ({ target, duration = 2 }) => {
@@ -150,6 +151,7 @@ export default function PublicLanding() {
             transition={{ delay: 0.2, duration: 0.8 }}
             className="space-y-6"
           >
+            <Logo size="lg" className="mx-auto" />
             <p className="text-sm font-bold uppercase tracking-[.18em] text-amber-300">
               Every child deserves safety and hope
             </p>
@@ -480,15 +482,7 @@ export default function PublicLanding() {
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             {/* Brand */}
             <div>
-              <div className="flex items-center gap-2">
-                <span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-300 text-[#0b4f4b]">
-                  <ShieldCheck size={21} />
-                </span>
-                <span>
-                  <strong className="block text-white">CLRMS</strong>
-                  <small className="text-[10px] uppercase tracking-[.18em]">Care & protection</small>
-                </span>
-              </div>
+              <Logo size="md" showText className="[&_strong]:text-white [&_small]:text-teal-200" />
               <p className="mt-4 text-sm">
                 Fighting child labour through technology, collaboration, and compassion.
               </p>
@@ -516,6 +510,16 @@ export default function PublicLanding() {
                 <li>
                   <Link to="/privacy-data-handling" className="hover:text-amber-300">
                     Privacy Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/faq" className="hover:text-amber-300">
+                    FAQ
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/resources" className="hover:text-amber-300">
+                    Resources
                   </Link>
                 </li>
               </ul>

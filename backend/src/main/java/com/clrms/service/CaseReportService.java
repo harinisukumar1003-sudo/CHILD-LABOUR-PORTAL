@@ -5,6 +5,10 @@ import com.clrms.dto.CaseReportResponse;
 import com.clrms.dto.CaseReportPublicResponse;
 import com.clrms.entity.*;
 import com.clrms.repository.CaseReportRepository;
+import com.clrms.repository.CaseAssignmentRepository;
+import com.clrms.repository.CaseStatusHistoryRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.clrms.exception.FieldValidationException;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,15 +28,33 @@ public class CaseReportService {
     private final CaseReportRepository repository;
     private final FileStorageService storage;
     private final ApplicationEventPublisher eventPublisher;
+    private final CaseAssignmentRepository assignments;
+    private final CaseStatusHistoryRepository statusHistory;
 
-    public CaseReportService(CaseReportRepository repository, FileStorageService storage, ApplicationEventPublisher eventPublisher) {
+    @Autowired
+    public CaseReportService(CaseReportRepository repository, FileStorageService storage, ApplicationEventPublisher eventPublisher, CaseAssignmentRepository assignments, CaseStatusHistoryRepository statusHistory) {
         this.repository = repository;
         this.storage = storage;
         this.eventPublisher = eventPublisher;
+        this.assignments = assignments;
+        this.statusHistory = statusHistory;
+    }
+
+    public CaseReportService(CaseReportRepository repository, FileStorageService storage, ApplicationEventPublisher eventPublisher, CaseAssignmentRepository assignments) {
+        this(repository, storage, eventPublisher, assignments, null);
+    }
+
+    public CaseReportService(CaseReportRepository repository, FileStorageService storage, ApplicationEventPublisher eventPublisher) {
+        this(repository, storage, eventPublisher, null);
     }
 
     @Transactional
-    public CaseReportResponse create(CaseReportRequest request, Authentication authentication) {
+    public CaseReportResponse create(CaseReportRequest request, List<MultipartFile> files, Authentication authentication) {
+        List<MultipartFile> uploads = files == null ? List.of() : files;
+        if (uploads.stream().noneMatch(EvidenceFileRules::isPhoto)) {
+            String message = "At least one photo is required as evidence";
+            throw new FieldValidationException(message, java.util.Map.of("files", message));
+        }
         Long reporterId = reporterIdForSubmission(request.isAnonymous(), authentication);
         CaseReport report = new CaseReport();
         report.setReporterId(reporterId);
@@ -48,29 +70,35 @@ public class CaseReportService {
         report.setChildDescription(clean(request.getChildDescription()));
         report.setLocationAddress(clean(request.getLocationAddress()));
         if (report.getLocationAddress() == null || report.getLocationAddress().isBlank()) throw new IllegalArgumentException("Location address is required");
+        report.setTownOrCity(clean(request.getTownOrCity()));
         report.setLatitude(request.getLatitude());
         report.setLongitude(request.getLongitude());
+        report.setPincode(clean(request.getPincode()));
+        report.setLandmark(clean(request.getLandmark()));
         report.setDistrict(clean(request.getDistrict()));
         report.setState(clean(request.getState()));
         report.setIncidentDescription(clean(request.getIncidentDescription()));
-        report.setEmployerOrLocationDetails(clean(request.getEmployerOrLocationDetails()));
         report.setDateOfIncident(request.getDateOfIncident());
         report.setUrgencyLevel(request.getApproxAge() != null && request.getApproxAge() < 10 ? UrgencyLevel.CRITICAL : request.getUrgencyLevel() == null ? UrgencyLevel.MEDIUM : request.getUrgencyLevel());
         report.setStatus(CaseStatus.REPORTED);
         report.setCaseNumber(generateCaseNumber());
-        if (request.isAnonymous()) report.setTrackingCode(generateTrackingCode());
+        report.setTrackingCode(generateTrackingCode());
 
-        for (MultipartFile file : request.getFiles() == null ? List.<MultipartFile>of() : request.getFiles()) {
+        for (MultipartFile file : uploads) {
             CaseEvidence evidence = new CaseEvidence();
             evidence.setCaseReport(report);
             evidence.setFileUrl(storage.store(file));
-            evidence.setFileType(fileType(file));
+            evidence.setFileType(EvidenceFileRules.fileType(file));
             evidence.setUploadedBy(reporterId);
             report.getEvidence().add(evidence);
         }
         CaseReport saved = repository.save(report);
+        if (statusHistory != null) {
+            CaseStatusHistory history = new CaseStatusHistory(); history.setCaseReportId(saved.getId()); history.setNewStatus(CaseStatus.REPORTED);
+            history.setActorUserId(reporterId); history.setActorRole(reporterId == null ? "PUBLIC" : "CITIZEN"); history.setDetails("Complaint submitted"); statusHistory.save(history);
+        }
         eventPublisher.publishEvent(new NewCaseReportedEvent(saved, saved.getId(), saved.getCaseNumber()));
-        return CaseReportResponse.from(saved, request.isAnonymous());
+        return CaseReportResponse.from(saved, true);
     }
 
     @Transactional
@@ -90,8 +118,8 @@ public class CaseReportService {
             throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN, "You cannot add evidence to this report");
         }
 
-        if (file == null || file.isEmpty() || !isAudioFile(file)) {
-            throw new IllegalArgumentException("Upload an audio recording in webm, mp3, wav, or m4a format");
+        if (file == null || file.isEmpty() || !EvidenceFileRules.isAudio(file)) {
+            throw new IllegalArgumentException("Upload an audio recording in webm, mp3, wav, m4a, or ogg format");
         }
         CaseEvidence evidence = new CaseEvidence();
         evidence.setCaseReport(report);
@@ -103,11 +131,17 @@ public class CaseReportService {
         return new CaseReportResponse.EvidenceResponse(evidence.getId(), evidence.getFileUrl(), evidence.getFileType(), evidence.getUploadedAt(), evidence.getUploadedBy());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<CaseReportResponse> myReports(Authentication authentication) {
         Long reporterId = currentUserId(authentication);
         if (reporterId == null) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN);
-        return repository.findByReporterIdOrderByCreatedAtDesc(reporterId).stream().map(report -> CaseReportResponse.from(report, false)).toList();
+        return repository.findByReporterIdOrderByCreatedAtDesc(reporterId).stream().map(report -> {
+            if (report.getTrackingCode() == null) {
+                report.setTrackingCode(generateTrackingCode());
+                report = repository.save(report);
+            }
+            return CaseReportResponse.from(report, true);
+        }).toList();
     }
 
     @Transactional(readOnly = true)
@@ -120,11 +154,27 @@ public class CaseReportService {
     @Transactional(readOnly = true)
     @SuppressWarnings("null")
     public Page<CaseReportResponse> search(CaseStatus status, UrgencyLevel urgency, String district, LocalDate from, LocalDate to, Pageable pageable) {
+        return search(status, urgency, district, from, to, pageable, null);
+    }
+
+    @Transactional(readOnly = true)
+    @SuppressWarnings("null")
+    public Page<CaseReportResponse> search(CaseStatus status, UrgencyLevel urgency, String district, LocalDate from, LocalDate to, Pageable pageable, Authentication authentication) {
         Specification<CaseReport> specification = Specification.where(status == null ? null : (root, query, cb) -> cb.equal(root.get("status"), status));
         if (urgency != null) specification = specification.and((root, query, cb) -> cb.equal(root.get("urgencyLevel"), urgency));
         if (district != null && !district.isBlank()) specification = specification.and((root, query, cb) -> cb.equal(root.get("district"), district));
         if (from != null) specification = specification.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("dateOfIncident"), from));
         if (to != null) specification = specification.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("dateOfIncident"), to));
+        if (hasRole(authentication, "OFFICER")) specification = specification.and((root, query, cb) -> {
+            var subquery = query.subquery(Long.class);
+            var assignment = subquery.from(CaseAssignment.class);
+            var latestQuery = subquery.subquery(Long.class);
+            var latest = latestQuery.from(CaseAssignment.class);
+            latestQuery.select(cb.max(latest.get("id"))).where(cb.equal(latest.get("caseReportId"), root.get("id")));
+            subquery.select(assignment.get("caseReportId")).where(cb.equal(assignment.get("assignedOfficerId"), currentUserId(authentication)),
+                    cb.equal(assignment.get("caseReportId"), root.get("id")), cb.equal(assignment.get("id"), latestQuery));
+            return cb.exists(subquery);
+        });
         return repository.findAll(specification, pageable).map(report -> CaseReportResponse.from(report, false));
     }
 
@@ -132,18 +182,25 @@ public class CaseReportService {
     @SuppressWarnings("null")
     public CaseReportResponse get(Long id, Authentication authentication) {
         CaseReport report = repository.findById(id).orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Report not found"));
-        if (hasRole(authentication, "ADMIN") || hasRole(authentication, "OFFICER") || hasRole(authentication, "NGO_STAFF") || (currentUserId(authentication) != null && currentUserId(authentication).equals(report.getReporterId()))) {
-            return hasRole(authentication, "NGO_STAFF") ? CaseReportResponse.forNgo(report) : CaseReportResponse.from(report, false);
+        boolean isReporter = currentUserId(authentication) != null && currentUserId(authentication).equals(report.getReporterId());
+        if (hasRole(authentication, "ADMIN") || isReporter) return CaseReportResponse.from(report, isReporter || hasRole(authentication, "ADMIN"));
+        if (hasRole(authentication, "OFFICER") && assignments != null
+                && assignments.findFirstByCaseReportIdOrderByAssignedAtDesc(id)
+                .map(assignment -> assignment.getAssignedOfficerId().equals(currentUserId(authentication))).orElse(false)) {
+            return CaseReportResponse.from(report, false);
         }
         throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN);
     }
 
     private Long reporterIdForSubmission(boolean anonymous, Authentication authentication) {
         if (anonymous) return null;
-        if (!hasRole(authentication, "CITIZEN")) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN, "Citizen authentication is required");
-        Long id = currentUserId(authentication);
-        if (id == null) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN, "Authenticated user id is required");
-        return id;
+        // If a CITIZEN is logged in, link the report to their account.
+        // Otherwise, allow the report with reporter contact details from the form (no account required).
+        if (hasRole(authentication, "CITIZEN")) {
+            Long id = currentUserId(authentication);
+            if (id != null) return id;
+        }
+        return null;
     }
 
     private Long currentUserId(Authentication authentication) {
@@ -170,19 +227,4 @@ public class CaseReportService {
         return trackingCode;
     }
 
-    private EvidenceFileType fileType(MultipartFile file) {
-        String originalFilename = file.getOriginalFilename();
-        String filenameLowercase = originalFilename == null ? "" : originalFilename.toLowerCase(java.util.Locale.ROOT);
-        if (filenameLowercase.endsWith(".jpg") || filenameLowercase.endsWith(".jpeg") || filenameLowercase.endsWith(".png")) return EvidenceFileType.IMAGE;
-        if (filenameLowercase.endsWith(".mp4")) return EvidenceFileType.VIDEO;
-        if (isAudioFile(file)) return EvidenceFileType.AUDIO;
-        return EvidenceFileType.DOCUMENT;
-    }
-
-    private boolean isAudioFile(MultipartFile file) {
-        String originalFilename = file.getOriginalFilename();
-        String filenameLowercase = originalFilename == null ? "" : originalFilename.toLowerCase(java.util.Locale.ROOT);
-        return filenameLowercase.endsWith(".webm") || filenameLowercase.endsWith(".mp3")
-                || filenameLowercase.endsWith(".wav") || filenameLowercase.endsWith(".m4a");
-    }
 }

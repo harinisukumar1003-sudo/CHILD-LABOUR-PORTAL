@@ -39,7 +39,7 @@ public class PublicApiService {
 
         // Children rescued (cases with RESCUED status)
         long childrenRescued = caseReports.findAll().stream()
-            .filter(report -> report.getStatus() == CaseStatus.RESCUED)
+            .filter(report -> report.getStatus() == CaseStatus.INVESTIGATION_COMPLETED)
             .count();
 
         // Ongoing rehabilitation (cases in progress, excluding COMPLETED)

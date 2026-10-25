@@ -53,7 +53,7 @@ public class CaseTrackingService {
             items.add(new TimelineItem("REHABILITATION", "Rehabilitation", rehabilitation.getStartDate().atStartOfDay(java.time.ZoneOffset.UTC).toInstant(),
                 internal ? "Assigned care team" : "CLRMS care team", "A rehabilitation plan is in progress", true));
             }
-            currentStage = report.getStatus() == CaseStatus.REHABILITATION ? "REHABILITATION_" + rehabilitation.getCurrentPhase().name() : report.getStatus().name();
+            currentStage = report.getStatus() == CaseStatus.REHABILITATION_IN_PROGRESS ? "REHABILITATION_" + rehabilitation.getCurrentPhase().name() : report.getStatus().name();
             items.add(new TimelineItem(currentStage, "Rehabilitation · " + phaseLabel(rehabilitation.getCurrentPhase()), rehabilitation.getStartDate().atStartOfDay(java.time.ZoneOffset.UTC).toInstant(),
                 internal ? "Assigned care team" : "CLRMS care team", internal ? "Current rehabilitation phase" : "Rehabilitation support is in progress", true));
         }
@@ -72,18 +72,26 @@ public class CaseTrackingService {
 
     private String publicRemark(CaseStatus status) { return switch (status) {
         case UNDER_REVIEW -> "Your report is being reviewed";
-        case ASSIGNED -> "The report has been assigned to a response team";
+        case ASSIGNED_TO_OFFICER -> "The report has been assigned to a response team";
         case INVESTIGATING -> "The response team is investigating";
-        case RESCUED -> "Safety support has been arranged";
-        case REHABILITATION -> "Rehabilitation support is in progress";
+        case REHABILITATION_REFERRED, NGO_ASSIGNED, REHABILITATION_IN_PROGRESS -> "Rehabilitation support is in progress";
+        case REHABILITATION_COMPLETED -> "Rehabilitation progress report submitted";
+        case INVALID_COMPLAINT -> "The complaint was marked invalid for review";
+        case INVESTIGATION_COMPLETED -> "Safety support has been arranged";
         case CLOSED -> "This case journey has been completed";
         case REJECTED -> "The report review is complete";
         default -> "Case status updated";
     }; }
 
     private String statusLabel(CaseStatus status) { return switch (status) {
-        case UNDER_REVIEW -> "Under Investigation";
-        case REHABILITATION -> "Rehabilitation";
+        case UNDER_REVIEW -> "Under Review";
+        case ASSIGNED_TO_OFFICER -> "Assigned to Officer";
+        case INVESTIGATION_COMPLETED -> "Investigation Completed";
+        case REHABILITATION_REFERRED -> "Rehabilitation Referred";
+        case NGO_ASSIGNED -> "NGO Assigned";
+        case REHABILITATION_IN_PROGRESS -> "Rehabilitation in Progress";
+        case REHABILITATION_COMPLETED -> "Rehabilitation Completed";
+        case INVALID_COMPLAINT -> "Invalid Complaint";
         default -> status.name().charAt(0) + status.name().substring(1).toLowerCase().replace('_', ' ');
     }; }
 
@@ -97,3 +105,4 @@ public class CaseTrackingService {
     private boolean isStaff(Authentication authentication) { return authentication != null && authentication.isAuthenticated() && authentication.getAuthorities().stream().anyMatch(authority -> Map.of("ROLE_OFFICER", true, "ROLE_NGO_STAFF", true, "ROLE_ADMIN", true).getOrDefault(authority.getAuthority(), false)); }
     private record TimelineItem(String stage, String label, Instant timestamp, String actor, String remarks, boolean completed) { }
 }
+

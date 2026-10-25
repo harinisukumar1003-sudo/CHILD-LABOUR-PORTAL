@@ -22,4 +22,5 @@ public class DashboardSummaryController {
     public ApiResponse<Map<String, Object>> summary(Authentication authentication) {
         return ApiResponse.success("Dashboard summary retrieved", service.summarize(authentication));
     }
+
 }

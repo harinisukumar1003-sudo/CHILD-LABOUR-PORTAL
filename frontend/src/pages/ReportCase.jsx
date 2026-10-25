@@ -20,12 +20,8 @@ import { Link } from 'react-router-dom';
 import { CircleMarker, MapContainer, TileLayer, useMapEvents } from 'react-leaflet';
 import api from '../services/api';
 import PublicNavbar from '../components/PublicNavbar';
-import {
-  districtsByState,
-  indianStatesAndTerritories,
-  placeExamplesByState,
-  sampleLocationPresets,
-} from '../data/indiaLocations';
+import { defaultStatesDistricts, loadIndiaStatesDistricts } from '../utils/indiaLocations';
+import { IndiaDistrictSelect, IndiaStateSelect } from '../components/IndiaLocationSelect';
 
 const steps = ['Child details', 'Location', 'Incident', 'Evidence', 'Reporter', 'Review'];
 const initial = {
@@ -34,12 +30,14 @@ const initial = {
   gender: '',
   childDescription: '',
   locationAddress: '',
+  townOrCity: '',
   latitude: '',
   longitude: '',
+  pincode: '',
+  landmark: '',
   district: '',
   state: '',
   incidentDescription: '',
-  employerOrLocationDetails: '',
   dateOfIncident: '',
   urgencyLevel: '',
   anonymous: false,
@@ -49,7 +47,47 @@ const initial = {
   files: [],
 };
 const audioFilePrefix = 'voice-statement-recording.';
-const fileExtensions = new Set(['jpg', 'jpeg', 'png', 'mp4', 'pdf', 'webm', 'mp3', 'wav', 'm4a']);
+const fileExtensions = new Set(['jpg', 'jpeg', 'png', 'webp', 'mp4', 'pdf', 'webm', 'mp3', 'wav', 'm4a', 'ogg']);
+const photoMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const evidenceMimeTypes = {
+  jpg: new Set(['image/jpeg']),
+  jpeg: new Set(['image/jpeg']),
+  png: new Set(['image/png']),
+  webp: new Set(['image/webp']),
+  mp4: new Set(['video/mp4']),
+  pdf: new Set(['application/pdf']),
+  webm: new Set(['audio/webm']),
+  mp3: new Set(['audio/mpeg', 'audio/mp3']),
+  wav: new Set(['audio/wav', 'audio/x-wav', 'audio/wave', 'audio/vnd.wave']),
+  m4a: new Set(['audio/mp4', 'audio/x-m4a', 'audio/m4a']),
+  ogg: new Set(['audio/ogg', 'application/ogg']),
+};
+
+function isPhoto(file) {
+  return photoMimeTypes.has(file.type.toLowerCase().split(';', 2)[0].trim());
+}
+
+function normalizedMimeType(file) {
+  return file.type.toLowerCase().split(';', 2)[0].trim();
+}
+
+function PhotoPreview({ file, onRemove }) {
+  const previewUrl = useMemo(() => URL.createObjectURL(file), [file]);
+
+  useEffect(() => () => URL.revokeObjectURL(previewUrl), [previewUrl]);
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-200">
+      <img src={previewUrl} alt={`Photo evidence: ${file.name}`} className="aspect-video w-full object-cover" />
+      <div className="flex items-center gap-2 p-3">
+        <p className="min-w-0 flex-1 truncate text-sm font-semibold">{file.name}</p>
+        <button type="button" onClick={onRemove} aria-label={`Remove photo ${file.name}`} className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-700">
+          <X size={17} />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function localDateString(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -94,9 +132,15 @@ const childFields = {
     .max(2000, 'The child description cannot exceed 2,000 characters.'),
 };
 const locationFields = {
-  locationAddress: z.string().trim().min(8, 'Enter the full address or a detailed nearby landmark.'),
-  latitude: z.string().min(1, 'Place a pin on the map.'),
-  longitude: z.string().min(1, 'Place a pin on the map.'),
+  locationAddress: z.string().trim().min(1, 'Enter the street address or location address.'),
+  townOrCity: z.string().trim()
+    .min(2, 'Enter the town or city name using at least 2 characters.')
+    .max(120, 'The town or city name cannot exceed 120 characters.')
+    .regex(/^(?=.*\p{L})[\p{L} .-]+$/u, 'Use letters, spaces, dots, and hyphens only.'),
+  latitude: z.string(),
+  longitude: z.string(),
+  pincode: z.string().regex(/^[1-9][0-9]{5}$/, 'Pincode must be 6 digits and cannot start with 0.'),
+  landmark: z.string().max(150, 'The landmark cannot exceed 150 characters.'),
   district: z.string().trim().min(1, 'Enter the district.'),
   state: z.string().trim().min(1, 'Enter the state.'),
 };
@@ -111,7 +155,7 @@ const incidentFields = {
 };
 const evidenceFields = {
   files: z.array(z.custom((file) => typeof File !== 'undefined' && file instanceof File))
-    .min(1, 'Attach at least one image, video, document, or audio recording.'),
+    .refine((files) => files.some(isPhoto), 'At least one photo is required as evidence'),
 };
 const reporterSchema = z.object(reporterFields).superRefine(validateReporter);
 const reportShape = {
@@ -120,7 +164,6 @@ const reportShape = {
   ...incidentFields,
   ...evidenceFields,
   ...reporterFields,
-  employerOrLocationDetails: z.string(),
 };
 const reportSchema = z.object(reportShape).superRefine(validateReporter);
 const stepSchemas = [
@@ -133,13 +176,14 @@ const stepSchemas = [
 ];
 const stepFields = [
   ['approxAge', 'gender', 'childDescription'],
-  ['locationAddress', 'latitude', 'longitude', 'district', 'state'],
+  ['locationAddress', 'townOrCity', 'district', 'state', 'pincode', 'landmark'],
   ['incidentDescription', 'dateOfIncident', 'urgencyLevel'],
   ['files'],
   ['anonymous', 'reporterName', 'reporterEmail', 'reporterPhone'],
   Object.keys(reportShape),
 ];
 const fieldLabels = {
+  childName: 'Child name',
   approxAge: 'Approximate age',
   gender: 'Gender',
   childDescription: 'Child description',
@@ -152,7 +196,11 @@ const fieldLabels = {
   dateOfIncident: 'Date of incident',
   urgencyLevel: 'Urgency level',
   files: 'Evidence file',
+  townOrCity: 'Town or city',
+  pincode: 'Pincode',
+  landmark: 'Landmark',
   reporterName: 'Reporter name',
+  reporterEmail: 'Reporter email',
   reporterPhone: 'Contact phone or email',
 };
 
@@ -166,8 +214,13 @@ function Field({
   placeholder,
   min,
   max,
+  maxLength,
+  inputMode,
+  pattern,
   rows,
   options,
+  searchable = false,
+  disabled = false,
   listId,
   onChange,
 }) {
@@ -184,7 +237,15 @@ function Field({
     list: listId,
     min,
     max,
+    maxLength,
+    inputMode,
+    pattern,
+    disabled,
     className: `mt-2 w-full rounded-xl border ${error ? 'border-red-400' : 'border-slate-200'} bg-white px-3.5 py-3 font-normal outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-50`,
+  };
+  const handleChange = (event) => {
+    registration.onChange(event);
+    onChange?.(event);
   };
 
   return (
@@ -194,22 +255,28 @@ function Field({
         {optional
           ? <span className="font-normal text-slate-500"> (optional)</span>
           : <span className="text-[#c94b32]"> *</span>}
-        {options
+        {searchable
+          ? (
+            <>
+              <input {...commonProps} type="search" onChange={handleChange} />
+              <datalist id={listId}>
+                {options.map((option) => <option key={option} value={option} />)}
+              </datalist>
+            </>
+          )
+          : options
           ? (
             <select
               {...commonProps}
-              onChange={(event) => {
-                registration.onChange(event);
-                onChange?.(event);
-              }}
+              onChange={handleChange}
             >
               <option value="">Choose {label.toLowerCase()}</option>
               {options.map((option) => <option key={option} value={option}>{option}</option>)}
             </select>
           )
           : rows
-          ? <textarea {...commonProps} rows={rows} />
-          : <input {...commonProps} type={type} />}
+          ? <textarea {...commonProps} rows={rows} onChange={handleChange} />
+          : <input {...commonProps} type={type} onChange={handleChange} />}
       </label>
       {error && <p id={`${id}-error`} className="mt-1 text-xs font-medium text-red-600" role="alert">{error}</p>}
     </div>
@@ -332,7 +399,7 @@ function AudioRecorder({ onAttach, onRemove, attached, registerAudioInput }) {
       <div className="flex items-start gap-3">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-[#0b4f4b] shadow-sm"><Mic size={19} /></span>
         <div>
-          <h3 className="font-bold text-[#0b4f4b]">Record Voice Statement</h3>
+          <h3 className="font-bold text-[#0b4f4b]">Voice statement (optional)</h3>
           <p className="mt-1 text-xs leading-5 text-slate-600">This recording will only be accessible to authorized officers investigating this case.</p>
         </div>
       </div>
@@ -373,7 +440,7 @@ function AudioRecorder({ onAttach, onRemove, attached, registerAudioInput }) {
           </button>
           <label className="cursor-pointer rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
             Upload Audio File
-            <input {...registerAudioInput} type="file" accept=".webm,.mp3,.wav,.m4a,audio/webm,audio/mpeg,audio/wav,audio/mp4" className="sr-only" />
+            <input {...registerAudioInput} type="file" accept=".webm,.mp3,.wav,.m4a,.ogg,audio/webm,audio/mpeg,audio/wav,audio/mp4,audio/ogg" className="sr-only" />
           </label>
         </div>
       )}
@@ -392,7 +459,7 @@ function UploadAudioAfterSubmission({ report }) {
       const data = new FormData();
       data.append('file', audioFile);
       const tracking = report.trackingCode ? `?trackingCode=${encodeURIComponent(report.trackingCode)}` : '';
-      await api.post(`/reports/${report.id}/evidence/audio${tracking}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await api.post(`/reports/${report.id}/evidence/audio${tracking}`, data);
       setAudioMessage('Audio evidence uploaded.');
       setAudioFile(null);
     } catch (requestError) {
@@ -406,7 +473,7 @@ function UploadAudioAfterSubmission({ report }) {
       <p className="mt-1 text-sm text-slate-600">You may add a child or witness statement as supplementary evidence. Audio only, up to 5MB.</p>
       <input
         type="file"
-        accept=".webm,.mp3,.wav,.m4a,audio/webm,audio/mpeg,audio/wav,audio/mp4"
+        accept=".webm,.mp3,.wav,.m4a,.ogg,audio/webm,audio/mpeg,audio/wav,audio/mp4,audio/ogg"
         onChange={(event) => {
           const selected = event.target.files?.[0];
           if (selected && selected.size > 5 * 1024 * 1024) {
@@ -427,8 +494,7 @@ function UploadAudioAfterSubmission({ report }) {
 
 export default function ReportCase() {
   const [step, setStep] = useState(0);
-  const [sampleNotice, setSampleNotice] = useState('');
-  const [locationPreset, setLocationPreset] = useState('');
+  const [locations, setLocations] = useState(() => defaultStatesDistricts);
   const [submitted, setSubmitted] = useState(null);
   const [latestIncidentDate] = useState(() => {
     const date = new Date();
@@ -436,6 +502,7 @@ export default function ReportCase() {
     return localDateString(date);
   });
   const [submitError, setSubmitError] = useState('');
+  const [apiFieldErrors, setApiFieldErrors] = useState({});
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
   const formElement = useRef(null);
   const resolver = useMemo(() => zodResolver(stepSchemas[step]), [step]);
@@ -452,7 +519,19 @@ export default function ReportCase() {
     mode: 'onChange',
     reValidateMode: 'onChange',
   });
+  useEffect(() => {
+    let active = true;
+    loadIndiaStatesDistricts().then((data) => {
+      if (active && data && typeof data === 'object') setLocations(data);
+    });
+    return () => { active = false; };
+  }, []);
   const values = useWatch({ control });
+  const stateOptions = useMemo(() => Object.keys(locations).sort((a, b) => a.localeCompare(b)), [locations]);
+  const districtOptions = useMemo(() => {
+    const list = locations[values.state];
+    return Array.isArray(list) ? [...list].sort((a, b) => a.localeCompare(b)) : [];
+  }, [locations, values.state]);
   const position = useMemo(
     () => values.latitude && values.longitude ? [Number(values.latitude), Number(values.longitude)] : null,
     [values.latitude, values.longitude],
@@ -463,59 +542,35 @@ export default function ReportCase() {
     if (field && !result[field]) result[field] = issue.message;
     return result;
   }, {});
-  const stepIsValid = activeStepResult.success;
+  if (step === 1 && values.state && !stateOptions.includes(values.state)) {
+    activeStepIssues.state = 'Choose a state or union territory from the list.';
+  }
+  if (step === 1 && values.district && !districtOptions.includes(values.district)) {
+    activeStepIssues.district = 'Choose a district in the selected state.';
+  }
+  const locationSelectionValid = step !== 1 || (
+    stateOptions.includes(values.state) && districtOptions.includes(values.district)
+  );
+  const stepIsValid = activeStepResult.success && locationSelectionValid;
   const fileList = Array.isArray(values.files) ? values.files : [];
+  const photoFiles = fileList.filter(isPhoto);
+  const extraFiles = fileList.filter((file) => !isPhoto(file));
   const voiceRecordingAttached = fileList.some((file) => file.name.startsWith(audioFilePrefix));
 
   const setPosition = ([latitude, longitude]) => {
     setValue('latitude', latitude.toFixed(6), { shouldDirty: true, shouldValidate: true });
     setValue('longitude', longitude.toFixed(6), { shouldDirty: true, shouldValidate: true });
-  };
-
-  const fillSampleDetails = () => {
-    const sampleDate = new Date();
-    sampleDate.setDate(sampleDate.getDate() - 1);
-    const sampleValues = {
-      childName: '',
-      approxAge: 12,
-      gender: 'Girl',
-      childDescription: 'Fictional sample: school-age child with a blue backpack and a red checked shirt.',
-      locationAddress: 'Sample location, Shivajinagar, Pune',
-      latitude: '18.530800',
-      longitude: '73.847500',
-      district: 'Pune',
-      state: 'Maharashtra',
-      incidentDescription: 'Fictional sample: a child was seen working at a roadside stall during school hours.',
-      employerOrLocationDetails: 'Fictional sample details — replace before submitting.',
-      dateOfIncident: localDateString(sampleDate),
-      urgencyLevel: 'HIGH',
-      anonymous: false,
-      reporterName: 'Demo Reporter',
-      reporterEmail: 'reporter@example.test',
-      reporterPhone: '9000000000',
-    };
-    Object.entries(sampleValues).forEach(([name, value]) => {
-      setValue(name, value, { shouldDirty: true, shouldValidate: true });
-    });
-    setPosition([Number(sampleValues.latitude), Number(sampleValues.longitude)]);
-    setLocationPreset(sampleLocationPresets[0].label);
-    setStep(0);
-    setSampleNotice('Fictional sample details filled in. Review and replace them before submitting; attach real evidence yourself.');
+    setApiFieldErrors((current) => Object.fromEntries(
+      Object.entries(current).filter(([field]) => field !== 'latitude' && field !== 'longitude'),
+    ));
     setSubmitError('');
-    setAttemptedSubmit(false);
-  };
-
-  const applyLocationPreset = (preset) => {
-    setLocationPreset(preset?.label || '');
-    if (!preset) return;
-    setValue('locationAddress', preset.address, { shouldDirty: true, shouldValidate: true });
-    setValue('district', preset.district, { shouldDirty: true, shouldValidate: true });
-    setValue('state', preset.state, { shouldDirty: true, shouldValidate: true });
-    setPosition([Number(preset.latitude), Number(preset.longitude)]);
   };
 
   const updateFiles = (newFiles) => {
     setValue('files', newFiles, { shouldDirty: true, shouldValidate: true });
+    setApiFieldErrors((current) => Object.fromEntries(
+      Object.entries(current).filter(([field]) => field !== 'files'),
+    ));
     setSubmitError('');
   };
 
@@ -525,15 +580,25 @@ export default function ReportCase() {
     if (!selectedFiles.length) return;
     const invalidFile = selectedFiles.find((file) => {
       const extension = file.name.split('.').pop()?.toLowerCase() || '';
-      const maxBytes = ['webm', 'mp3', 'wav', 'm4a'].includes(extension) ? 5 * 1024 * 1024 : 10 * 1024 * 1024;
-      return !fileExtensions.has(extension) || file.size > maxBytes;
+      const maxBytes = ['webm', 'mp3', 'wav', 'm4a', 'ogg'].includes(extension) ? 5 * 1024 * 1024 : 10 * 1024 * 1024;
+      return !fileExtensions.has(extension)
+        || !evidenceMimeTypes[extension]?.has(normalizedMimeType(file))
+        || file.size > maxBytes;
     });
     if (invalidFile) {
       setSubmitError(`"${invalidFile.name}" is not a supported evidence file or exceeds its file size limit.`);
       return;
     }
-    if (fileList.length + selectedFiles.length > 5) {
-      setSubmitError('Attach no more than five evidence files.');
+    updateFiles([...fileList, ...selectedFiles]);
+  };
+
+  const addPhotos = (event) => {
+    const selectedFiles = Array.from(event.target.files || []);
+    event.target.value = '';
+    if (!selectedFiles.length) return;
+    const invalidPhoto = selectedFiles.find((file) => !isPhoto(file) || file.size > 10 * 1024 * 1024);
+    if (invalidPhoto) {
+      setSubmitError(`"${invalidPhoto.name}" must be a JPEG, PNG, or WEBP photo no larger than 10MB.`);
       return;
     }
     updateFiles([...fileList, ...selectedFiles]);
@@ -551,7 +616,7 @@ export default function ReportCase() {
 
   const continueToNextStep = async () => {
     const isValid = await trigger(stepFields[step]);
-    if (isValid && step < steps.length - 1) {
+    if (isValid && (step !== 1 || locationSelectionValid) && step < steps.length - 1) {
       setStep((current) => current + 1);
       setSubmitError('');
       setAttemptedSubmit(false);
@@ -560,18 +625,44 @@ export default function ReportCase() {
 
   const submit = async (formValues) => {
     setSubmitError('');
+    setApiFieldErrors({});
     setAttemptedSubmit(false);
     try {
       const data = new FormData();
-      Object.entries(formValues).forEach(([key, value]) => {
-        if (key === 'files' || (formValues.anonymous && ['reporterName', 'reporterEmail', 'reporterPhone'].includes(key))) return;
-        data.append(key, value);
-      });
+      const report = {
+        reporterName: formValues.anonymous ? null : formValues.reporterName.trim(),
+        reporterEmail: formValues.anonymous ? null : formValues.reporterEmail.trim(),
+        reporterPhone: formValues.anonymous ? null : formValues.reporterPhone.trim(),
+        childName: formValues.childName.trim() || null,
+        approxAge: Number(formValues.approxAge),
+        gender: formValues.gender,
+        childDescription: formValues.childDescription.trim(),
+        locationAddress: formValues.locationAddress.trim(),
+        townOrCity: formValues.townOrCity.trim(),
+        latitude: formValues.latitude ? Number(formValues.latitude) : null,
+        longitude: formValues.longitude ? Number(formValues.longitude) : null,
+        pincode: formValues.pincode.trim(),
+        landmark: formValues.landmark.trim() || null,
+        district: formValues.district.trim(),
+        state: formValues.state,
+        incidentDescription: formValues.incidentDescription.trim(),
+        dateOfIncident: formValues.dateOfIncident,
+        anonymous: Boolean(formValues.anonymous),
+        urgencyLevel: formValues.urgencyLevel,
+      };
+      data.append('report', new Blob([JSON.stringify(report)], { type: 'application/json' }));
       formValues.files.forEach((file) => data.append('files', file));
-      const response = await api.post('/reports', data, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const response = await api.post('/reports', data);
       setSubmitted(response.data.data);
     } catch (requestError) {
-      setSubmitError(requestError.response?.data?.message || 'We could not submit the report. Please try again.');
+      const responseBody = requestError.response?.data;
+      const backendFieldErrors = responseBody?.fieldErrors && typeof responseBody.fieldErrors === 'object'
+        ? Object.fromEntries(Object.entries(responseBody.fieldErrors).map(([field, message]) => [field, String(message)]))
+        : {};
+      setApiFieldErrors(backendFieldErrors);
+      setSubmitError(responseBody?.message || requestError.message || 'We could not submit the report. Please try again.');
+      const firstInvalidStep = stepFields.findIndex((fields) => fields.some((field) => backendFieldErrors[field]));
+      if (firstInvalidStep >= 0) setStep(firstInvalidStep);
     }
   };
 
@@ -632,13 +723,7 @@ export default function ReportCase() {
         <div className="mb-8 mt-6">
           <p className="text-sm font-bold uppercase tracking-[.16em] text-[#c94b32]">A calm place to begin</p>
           <h1 className="mt-2 text-3xl font-bold text-[#0b4f4b] sm:text-4xl">Report a case</h1>
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-slate-600">Thank you for helping protect a child. Share what you know, at your own pace.</p>
-            <button type="button" onClick={fillSampleDetails} className="rounded-xl border border-teal-700 px-3 py-2 text-sm font-bold text-teal-800 hover:bg-teal-50">
-              Fill sample details
-            </button>
-          </div>
-          {sampleNotice && <p role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{sampleNotice}</p>}
+          <p className="mt-2 text-slate-600">Thank you for helping protect a child. Share what you know, at your own pace.</p>
         </div>
         <div className="mb-8 grid grid-cols-3 gap-2 sm:grid-cols-6" aria-label="Report steps">
           {steps.map((label, index) => (
@@ -654,44 +739,96 @@ export default function ReportCase() {
           ))}
         </div>
 
-        <form ref={formElement} noValidate onSubmit={handleFormSubmit}>
-          {submitError && <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">{submitError}</div>}
+        <form
+          ref={formElement}
+          noValidate
+          onSubmit={handleFormSubmit}
+          onChange={(event) => {
+            const field = event.target.name;
+            if (field && apiFieldErrors[field]) {
+              setApiFieldErrors((current) => Object.fromEntries(
+                Object.entries(current).filter(([name]) => name !== field),
+              ));
+              setSubmitError('');
+            }
+          }}
+        >
+          {(submitError || Object.keys(apiFieldErrors).length > 0) && (
+            <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">
+              {submitError && <p>{submitError}</p>}
+              {Object.entries(apiFieldErrors).map(([field, message]) => (
+                <p key={field} className="mt-1"><span className="font-semibold">{fieldLabels[field] || field}:</span> {message}</p>
+              ))}
+            </div>
+          )}
 
           {step === 0 && (
             <Section title="Tell us about the child" note="A detailed description helps identify and protect the child.">
-              <Field id="childName" label="Child’s real name" optional register={register} error={errors.childName?.message} placeholder="Leave blank if unknown" />
+              <Field id="childName" label="Child’s real name" optional register={register} error={apiFieldErrors.childName || errors.childName?.message} placeholder="Leave blank if unknown" />
               <div className="grid gap-5 sm:grid-cols-2">
-                <Field id="approxAge" label="Approximate age" type="number" min="0" max="18" register={register} error={activeStepIssues.approxAge || errors.approxAge?.message} placeholder="Age 0–18" />
+                <Field id="approxAge" label="Approximate age" type="number" min="0" max="18" register={register} error={apiFieldErrors.approxAge || activeStepIssues.approxAge || errors.approxAge?.message} placeholder="Age 0–18" />
                 <Field
                   id="gender"
                   label="Gender"
                   register={register}
-                  error={activeStepIssues.gender || errors.gender?.message}
+                  error={apiFieldErrors.gender || activeStepIssues.gender || errors.gender?.message}
                   options={['Girl', 'Boy', 'Non-binary', 'Not known']}
                 />
               </div>
-              <Field id="childDescription" label="Child description" rows="4" register={register} error={activeStepIssues.childDescription || errors.childDescription?.message} placeholder="Describe the child’s appearance, clothing, or other identifying details (at least 20 characters)." />
+              <Field id="childDescription" label="Child description" rows="4" register={register} error={apiFieldErrors.childDescription || activeStepIssues.childDescription || errors.childDescription?.message} placeholder="Describe the child’s appearance, clothing, or other identifying details (at least 20 characters)." />
             </Section>
           )}
 
           {step === 1 && (
-            <Section title="Where did this happen?" note="Enter the address, district, and state, then place a pin on the map.">
-              <div>
-                <label htmlFor="locationPreset" className="block text-sm font-semibold text-slate-700">
-                  Place examples <span className="font-normal text-slate-500">(optional)</span>
-                </label>
-                <select
-                  id="locationPreset"
-                  value={locationPreset}
-                  onChange={(event) => applyLocationPreset(sampleLocationPresets.find((preset) => preset.label === event.target.value))}
-                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 font-normal outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-50"
-                >
-                  <option value="">Choose a sample place to fill state, district, address, and map pin</option>
-                  {sampleLocationPresets.map((preset) => <option key={preset.label} value={preset.label}>{preset.label}</option>)}
-                </select>
-                <p className="mt-1 text-xs text-slate-500">These are example locations. You can edit all details or enter another address.</p>
-              </div>
-              <Field id="locationAddress" label="Full address or detailed landmark" register={register} error={activeStepIssues.locationAddress || errors.locationAddress?.message} placeholder="Street, building, nearby landmark, or neighbourhood" listId="place-options" />
+            <Section title="Where did this happen?" note="Provide the exact location. A map pin is optional.">
+              <IndiaStateSelect
+                id="state"
+                label="State"
+                value={values.state}
+                locations={locations}
+                error={apiFieldErrors.state || activeStepIssues.state || errors.state?.message}
+                onChange={(newState) => {
+                  setValue('state', newState, { shouldDirty: true, shouldValidate: true });
+                  setValue('district', '', { shouldDirty: true, shouldValidate: true });
+                  setApiFieldErrors((current) => Object.fromEntries(
+                    Object.entries(current).filter(([field]) => field !== 'state' && field !== 'district'),
+                  ));
+                  trigger(['state', 'district']);
+                }}
+              />
+              <IndiaDistrictSelect
+                id="district"
+                label="District"
+                value={values.district}
+                districts={districtOptions}
+                state={values.state}
+                disabled={!stateOptions.includes(values.state)}
+                error={apiFieldErrors.district || activeStepIssues.district || errors.district?.message}
+                onChange={(newDistrict) => {
+                  setValue('district', newDistrict, { shouldDirty: true, shouldValidate: true });
+                  setApiFieldErrors((current) => Object.fromEntries(
+                    Object.entries(current).filter(([field]) => field !== 'district'),
+                  ));
+                  trigger('district');
+                }}
+              />
+              <input type="hidden" {...register('state')} />
+              <input type="hidden" {...register('district')} />
+              <Field id="townOrCity" label="Exact town or city name" register={register} error={apiFieldErrors.townOrCity || activeStepIssues.townOrCity || errors.townOrCity?.message} placeholder="Town or city" maxLength={120} />
+              <Field id="locationAddress" label="Street address" register={register} error={apiFieldErrors.locationAddress || activeStepIssues.locationAddress || errors.locationAddress?.message} placeholder="Street, building, or specific location" />
+              <Field id="landmark" label="Landmark" optional register={register} error={apiFieldErrors.landmark || activeStepIssues.landmark || errors.landmark?.message} placeholder="Nearby landmark (up to 150 characters)" maxLength={150} />
+              <Field
+                id="pincode"
+                label="Pincode"
+                type="text"
+                register={register}
+                error={apiFieldErrors.pincode || activeStepIssues.pincode || errors.pincode?.message}
+                placeholder="6-digit pincode"
+                maxLength={6}
+                inputMode="numeric"
+                pattern="[1-9][0-9]{5}"
+                onChange={(event) => setValue('pincode', event.target.value.replace(/\D/g, '').slice(0, 6), { shouldDirty: true, shouldValidate: true })}
+              />
               <div>
                 <div className="h-72 overflow-hidden rounded-xl border border-slate-200">
                   <MapContainer center={position || [20.5937, 78.9629]} zoom={position ? 14 : 5} scrollWheelZoom className="h-full w-full">
@@ -699,51 +836,16 @@ export default function ReportCase() {
                     <MapPicker position={position} setPosition={setPosition} />
                   </MapContainer>
                 </div>
-                <p className="mt-2 text-xs text-slate-500"><span className="font-semibold">Map pin <span className="text-[#c94b32]">*</span>:</span> click the map to place it. Coordinates: {position ? `${values.latitude}, ${values.longitude}` : 'not selected yet'}</p>
-                {(activeStepIssues.latitude || activeStepIssues.longitude || errors.latitude?.message) && (
-                  <p className="mt-1 text-xs font-medium text-red-600" role="alert">{activeStepIssues.latitude || activeStepIssues.longitude || errors.latitude?.message}</p>
-                )}
-              </div>
-              <div className="grid gap-5 sm:grid-cols-2">
-                <div>
-                  <Field
-                    id="district"
-                    label="District"
-                    register={register}
-                    error={activeStepIssues.district || errors.district?.message}
-                    placeholder="Choose a suggestion or type the district"
-                    listId="district-options"
-                  />
-                  <datalist id="district-options">
-                    {(districtsByState[values.state] || []).map((district) => <option key={district} value={district} />)}
-                  </datalist>
-                </div>
-                <div>
-                  <Field
-                    id="state"
-                    label="State / union territory"
-                    register={register}
-                    error={activeStepIssues.state || errors.state?.message}
-                    options={indianStatesAndTerritories}
-                    onChange={() => {
-                      setLocationPreset('');
-                      setValue('district', '', { shouldDirty: true, shouldValidate: true });
-                    }}
-                  />
-                  <datalist id="place-options">
-                    {(placeExamplesByState[values.state] || []).map((place) => <option key={place} value={place} />)}
-                  </datalist>
-                </div>
+                <p className="mt-2 text-xs text-slate-500"><span className="font-semibold">Map pin (optional):</span> click the map to add coordinates. {position ? `Coordinates: ${values.latitude}, ${values.longitude}` : 'No pin selected.'}</p>
               </div>
             </Section>
           )}
 
           {step === 2 && (
             <Section title="What happened?" note="Tell us what you observed. The date must be before today.">
-              <Field id="incidentDescription" label="Incident description" rows="5" register={register} error={activeStepIssues.incidentDescription || errors.incidentDescription?.message} placeholder="Describe what happened, where, and when (at least 30 characters)." />
-              <Field id="employerOrLocationDetails" label="Employer or location details" optional register={register} error={errors.employerOrLocationDetails?.message} placeholder="Business name or additional details" />
+              <Field id="incidentDescription" label="Incident description" rows="5" register={register} error={apiFieldErrors.incidentDescription || activeStepIssues.incidentDescription || errors.incidentDescription?.message} placeholder="Describe what happened, where, and when (at least 30 characters)." />
               <div className="grid gap-5 sm:grid-cols-2">
-                <Field id="dateOfIncident" label="Date of incident" type="date" max={latestIncidentDate} register={register} error={activeStepIssues.dateOfIncident || errors.dateOfIncident?.message} />
+                <Field id="dateOfIncident" label="Date of incident" type="date" max={latestIncidentDate} register={register} error={apiFieldErrors.dateOfIncident || activeStepIssues.dateOfIncident || errors.dateOfIncident?.message} />
                 <div>
                   <label htmlFor="urgencyLevel" className="block text-sm font-semibold text-slate-700">
                     Urgency level <span className="text-[#c94b32]"> *</span>
@@ -751,7 +853,7 @@ export default function ReportCase() {
                   <select
                     id="urgencyLevel"
                     {...register('urgencyLevel')}
-                    aria-invalid={Boolean(activeStepIssues.urgencyLevel || errors.urgencyLevel)}
+                    aria-invalid={Boolean(apiFieldErrors.urgencyLevel || activeStepIssues.urgencyLevel || errors.urgencyLevel)}
                     className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 outline-none"
                   >
                     <option value="">Select urgency</option>
@@ -760,20 +862,36 @@ export default function ReportCase() {
                     <option value="HIGH">HIGH</option>
                     <option value="CRITICAL">CRITICAL</option>
                   </select>
-                  {(activeStepIssues.urgencyLevel || errors.urgencyLevel?.message) && <p className="mt-1 text-xs font-medium text-red-600" role="alert">{activeStepIssues.urgencyLevel || errors.urgencyLevel?.message}</p>}
+                  {(apiFieldErrors.urgencyLevel || activeStepIssues.urgencyLevel || errors.urgencyLevel?.message) && <p className="mt-1 text-xs font-medium text-red-600" role="alert">{apiFieldErrors.urgencyLevel || activeStepIssues.urgencyLevel || errors.urgencyLevel?.message}</p>}
                 </div>
               </div>
             </Section>
           )}
 
           {step === 3 && (
-            <Section title={<span>Add supporting evidence <span className="text-[#c94b32]">*</span></span>} note="At least one image, video, document, or audio recording is required. Audio must be 5MB or smaller.">
-              <label className="flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-teal-200 bg-teal-50/40 p-6 text-center">
+            <Section title="Photo evidence (required)" note="Attach at least one JPEG, PNG, or WEBP photo. You can select multiple photos; each photo can be up to 10MB.">
+              <label className="flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-teal-200 bg-teal-50/40 p-6 text-center">
                 <UploadCloud className="text-[#0b4f4b]" size={30} />
-                <span className="mt-3 font-bold text-[#0b4f4b]">Choose files to upload</span>
-                <span className="mt-1 text-xs text-slate-500">JPG, PNG, MP4, PDF (10MB max) · WEBM, MP3, WAV, M4A (5MB max)</span>
-                <input type="file" multiple accept=".jpg,.jpeg,.png,.mp4,.pdf,.webm,.mp3,.wav,.m4a,audio/*" onChange={addFiles} className="sr-only" />
+                <span className="mt-3 font-bold text-[#0b4f4b]">Choose photo evidence</span>
+                <span className="mt-1 text-xs text-slate-500">JPEG, PNG, or WEBP · up to 10MB each · camera capture supported on mobile</span>
+                <input type="file" multiple accept="image/*" capture="environment" onChange={addPhotos} className="sr-only" />
               </label>
+              {(apiFieldErrors.files || activeStepIssues.files || errors.files?.message) && (
+                <p className="text-sm font-medium text-red-600" role="alert">{apiFieldErrors.files || activeStepIssues.files || errors.files?.message}</p>
+              )}
+              {photoFiles.length > 0 && (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Photo evidence previews">
+                  {photoFiles.map((file) => {
+                    const fileIndex = fileList.indexOf(file);
+                    return <PhotoPreview key={`${file.name}-${fileIndex}`} file={file} onRemove={() => removeFile(fileIndex)} />;
+                  })}
+                </div>
+              )}
+              <div className="rounded-xl border border-slate-200 p-4">
+                <h3 className="font-semibold text-slate-800">Video and documents (optional)</h3>
+                <p className="mt-1 text-xs text-slate-500">MP4 video or PDF documents, up to 10MB each.</p>
+                <input type="file" multiple accept="video/mp4,application/pdf" onChange={addFiles} className="mt-3 block w-full text-sm" />
+              </div>
               <AudioRecorder
                 onAttach={attachRecording}
                 onRemove={removeVoiceRecording}
@@ -781,19 +899,20 @@ export default function ReportCase() {
                 registerAudioInput={register('audioFallback', { onChange: (event) => {
                   const file = event.target.files?.[0];
                   const extension = file?.name.split('.').pop()?.toLowerCase();
-                  if (file && !['webm', 'mp3', 'wav', 'm4a'].includes(extension)) {
+                  if (file && (!['webm', 'mp3', 'wav', 'm4a', 'ogg'].includes(extension)
+                    || !evidenceMimeTypes[extension]?.has(normalizedMimeType(file)))) {
                     event.target.value = '';
-                    setSubmitError('Choose a WEBM, MP3, WAV, or M4A audio file.');
+                    setSubmitError('Choose a supported WEBM, MP3, WAV, M4A, or OGG audio file with a matching audio MIME type.');
                     return;
                   }
                   addFiles(event);
                 } })}
               />
-              {(activeStepIssues.files || errors.files?.message) && (
-                <p className="text-sm font-medium text-red-600" role="alert">{activeStepIssues.files || errors.files?.message}</p>
-              )}
-              <div className="grid gap-3">
-                {fileList.map((file, index) => (
+              {extraFiles.length > 0 && (
+                <div className="grid gap-3" aria-label="Optional supporting evidence">
+                  {extraFiles.map((file) => {
+                    const index = fileList.indexOf(file);
+                    return (
                   <div key={`${file.name}-${index}`} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
                     {file.type.startsWith('audio/') ? <FileAudio2 size={19} className="text-[#c94b32]" /> : <FileText size={19} className="text-[#c94b32]" />}
                     <p className="min-w-0 flex-1 truncate text-sm font-bold">{file.name}</p>
@@ -801,8 +920,11 @@ export default function ReportCase() {
                       <X size={17} className="text-slate-400" />
                     </button>
                   </div>
-                ))}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
+              <p className="text-xs text-slate-500">{photoFiles.length} photo{photoFiles.length === 1 ? '' : 's'} attached{voiceRecordingAttached ? ' · voice statement attached' : ''}.</p>
             </Section>
           )}
 
@@ -817,13 +939,13 @@ export default function ReportCase() {
               </label>
               {!values.anonymous && (
                 <div className="grid gap-5 sm:grid-cols-2">
-                  <Field id="reporterName" label="Your name" register={register} error={activeStepIssues.reporterName || errors.reporterName?.message} placeholder="Full name" />
+                  <Field id="reporterName" label="Your name" register={register} error={apiFieldErrors.reporterName || activeStepIssues.reporterName || errors.reporterName?.message} placeholder="Full name" />
                   <fieldset className="grid gap-5 sm:col-span-2 sm:grid-cols-2">
                     <legend className="mb-1 text-sm font-semibold text-slate-700">Contact phone or email <span className="text-[#c94b32]">*</span></legend>
-                    <Field id="reporterEmail" label="Email address" optional type="email" register={register} error={values.reporterEmail.trim() ? activeStepIssues.reporterEmail || errors.reporterEmail?.message : undefined} placeholder="you@example.org" />
-                    <Field id="reporterPhone" label="Phone number" optional register={register} error={values.reporterPhone.trim() ? activeStepIssues.reporterPhone || errors.reporterPhone?.message : undefined} placeholder="Your phone number" />
-                    {!values.reporterEmail.trim() && !values.reporterPhone.trim() && activeStepIssues.reporterPhone && (
-                      <p className="text-xs font-medium text-red-600 sm:col-span-2" role="alert">{activeStepIssues.reporterPhone}</p>
+                    <Field id="reporterEmail" label="Email address" optional type="email" register={register} error={apiFieldErrors.reporterEmail || (values.reporterEmail.trim() ? activeStepIssues.reporterEmail || errors.reporterEmail?.message : undefined)} placeholder="you@example.org" />
+                    <Field id="reporterPhone" label="Phone number" optional register={register} error={apiFieldErrors.reporterPhone || (values.reporterPhone.trim() ? activeStepIssues.reporterPhone || errors.reporterPhone?.message : undefined)} placeholder="Your phone number" />
+                    {!values.reporterEmail.trim() && !values.reporterPhone.trim() && (apiFieldErrors.reporterEmail || apiFieldErrors.reporterPhone || activeStepIssues.reporterPhone) && (
+                      <p className="text-xs font-medium text-red-600 sm:col-span-2" role="alert">{apiFieldErrors.reporterEmail || apiFieldErrors.reporterPhone || activeStepIssues.reporterPhone}</p>
                     )}
                   </fieldset>
                 </div>
@@ -837,11 +959,17 @@ export default function ReportCase() {
                 <p><b>Child’s name:</b> {values.childName || 'Not provided (optional)'}</p>
                 <p><b>Approximate age and gender:</b> {values.approxAge || 'Not provided'}, {values.gender || 'Not provided'}</p>
                 <p><b>Child description:</b> {values.childDescription || 'Not provided'}</p>
-                <p><b>Location:</b> {values.locationAddress || 'Not provided'}{values.district && `, ${values.district}`}{values.state && `, ${values.state}`}</p>
+                <p><b>State:</b> {values.state || 'Not provided'}</p>
+                <p><b>District:</b> {values.district || 'Not provided'}</p>
+                <p><b>Town / city:</b> {values.townOrCity || 'Not provided'}</p>
+                {values.landmark.trim() && <p><b>Landmark:</b> {values.landmark}</p>}
+                <p><b>Pincode:</b> {values.pincode || 'Not provided'}</p>
+                <p><b>Street address:</b> {values.locationAddress || 'Not provided'}</p>
                 <p><b>Map pin:</b> {position ? `${values.latitude}, ${values.longitude}` : 'Not provided'}</p>
                 <p><b>Incident:</b> {values.incidentDescription || 'Not provided'}</p>
                 <p><b>Date and urgency:</b> {values.dateOfIncident || 'Not provided'} · {values.urgencyLevel || 'Not provided'}</p>
-                <p><b>Evidence:</b> {fileList.length ? fileList.map((file) => file.name).join(', ') : 'None added'}</p>
+                <p><b>Photo evidence:</b> {photoFiles.length ? photoFiles.map((file) => file.name).join(', ') : 'Required — no photo attached'}</p>
+                <p><b>Optional extras:</b> {extraFiles.length ? extraFiles.map((file) => file.name).join(', ') : 'None added'}</p>
                 <p><b>Reporter:</b> {values.anonymous ? 'Anonymous' : values.reporterName || 'Not provided'}</p>
               </div>
               {(attemptedSubmit || step === steps.length - 1) && missingFields.length > 0 && (
@@ -852,7 +980,7 @@ export default function ReportCase() {
                   </ul>
                 </div>
               )}
-              {activeStepIssues.files && <p className="text-sm font-medium text-red-600" role="alert">{activeStepIssues.files}</p>}
+              {(apiFieldErrors.files || activeStepIssues.files) && <p className="text-sm font-medium text-red-600" role="alert">{apiFieldErrors.files || activeStepIssues.files}</p>}
             </Section>
           )}
 

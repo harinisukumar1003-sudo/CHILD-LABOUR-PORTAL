@@ -40,6 +40,9 @@ public class PublicRateLimitFilter extends OncePerRequestFilter {
     private boolean limitedEndpoint(HttpServletRequest request) {
         String path = request.getRequestURI();
         return ("POST".equals(request.getMethod()) && "/api/reports".equals(path)) ||
+               ("POST".equals(request.getMethod()) && ("/api/public/volunteer-applications".equals(path)
+                       || "/api/public/partnership-requests".equals(path)
+                       || "/api/public/contact".equals(path))) ||
                ("GET".equals(request.getMethod()) && (path.matches("/api/reports/[^/]+/track") || path.matches("/api/cases/[^/]+/timeline")));
     }
     

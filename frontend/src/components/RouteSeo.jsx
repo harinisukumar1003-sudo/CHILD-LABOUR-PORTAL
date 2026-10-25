@@ -4,6 +4,10 @@ import { useLocation } from 'react-router-dom';
 const routeMetadata = [
   [/^\/$/, 'Child Labour Reporting & Management System', 'Report child labour safely, track a case, and coordinate support for children.'],
   [/^\/about$/, 'About CLRMS', 'Learn how CLRMS coordinates child protection reporting, investigation, and rehabilitation.'],
+  [/^\/faq$/, 'Frequently Asked Questions', 'Answers about reporting concerns, tracking cases, and getting involved.'],
+  [/^\/resources$/, 'Resources', 'Portal resources for reporting, case tracking, privacy, volunteering, and partnerships.'],
+  [/^\/volunteer$/, 'Become a Volunteer', 'Apply to volunteer in child protection, awareness, counselling, or rehabilitation.'],
+  [/^\/partner-with-us$/, 'Become Our Partner', 'Propose a partnership to support child protection and rehabilitation.'],
   [/^\/report(?:-case)?$/, 'Report a Case', 'Submit a confidential child protection report to the CLRMS response network.'],
   [/^\/track-case$/, 'Track a Case', 'Securely check the progress of a CLRMS case using your case number and tracking code.'],
   [/^\/contact$/, 'Contact CLRMS', 'Contact the CLRMS child protection support team.'],
@@ -21,7 +25,7 @@ export default function RouteSeo() {
     const match = routeMetadata.find(([pattern]) => pattern.test(pathname));
     const title = match?.[1] || 'CLRMS Workspace';
     const description = match?.[2] || 'Child Labour Reporting & Management System — coordinated case response and rehabilitation.';
-    const image = new URL('/og-child-protection.svg', window.location.origin).href;
+    const image = new URL('/logo.png', window.location.origin).href;
     document.title = `${title} | CLRMS`;
 
     const setMeta = (attribute, key, content) => {

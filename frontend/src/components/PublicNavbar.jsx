@@ -1,6 +1,7 @@
-import { Menu, ShieldCheck, X } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
+import Logo from './Logo';
 import { useAuth } from '../context/AuthContext';
 import { dashboardPathForRole } from '../utils/roles';
 
@@ -23,10 +24,7 @@ export default function PublicNavbar() {
   return (
     <nav className="sticky top-0 z-40 border-b border-amber-100 bg-white/95 px-4 py-3 backdrop-blur sm:px-8" aria-label="Public navigation">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-        <Link to="/" className="flex shrink-0 items-center gap-2.5" aria-label="CLRMS home">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#0b4f4b] text-amber-300"><ShieldCheck size={21} /></span>
-          <span><strong className="block text-sm tracking-tight text-slate-900">CLRMS</strong><small className="block text-[9px] uppercase tracking-[.16em] text-teal-700">Care & protection</small></span>
-        </Link>
+        <Logo size="md" showText className="shrink-0" />
         <div className="hidden items-center gap-5 text-sm font-semibold md:flex">
           {links.map(link => <NavLink key={link.to} to={link.to} end={link.to === '/'} className={({ isActive }) => `transition ${isActive ? 'text-teal-800' : 'text-slate-600 hover:text-teal-800'}`}>{link.label}</NavLink>)}
           <Link to="/report" className="rounded-xl bg-[#c94b32] px-4 py-2.5 text-white shadow-sm transition hover:bg-[#a83d2a]">Report a Case</Link>

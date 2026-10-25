@@ -17,20 +17,24 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.*;
 
 @Service
 public class NotificationService {
-    private final NotificationRepository notifications; @SuppressWarnings("unused") private final CaseReportRepository reports; private final RehabilitationActivityRepository activities; private final RehabilitationCaseRepository rehabilitationCases; private final SimpMessagingTemplate messaging; private final JavaMailSender mailSender; private final ApplicationEventPublisher eventPublisher;
+    private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
+    private final NotificationRepository notifications; @SuppressWarnings("unused") private final CaseReportRepository reports; private final RehabilitationActivityRepository activities; private final RehabilitationCaseRepository rehabilitationCases; private final UserRepository users; private final SimpMessagingTemplate messaging; private final JavaMailSender mailSender; private final ApplicationEventPublisher eventPublisher;
     @Value("${app.mail-from:clrms@localhost}") private String mailFrom;
     @Value("${app.notification.default-email:}") private String defaultEmail;
     @Value("${app.notification.staff-user-ids:}") private String staffUserIds;
 
-    public NotificationService(NotificationRepository notifications, CaseReportRepository reports, RehabilitationActivityRepository activities, RehabilitationCaseRepository rehabilitationCases, SimpMessagingTemplate messaging, JavaMailSender mailSender, ApplicationEventPublisher eventPublisher) { this.notifications = notifications; this.reports = reports; this.activities = activities; this.rehabilitationCases = rehabilitationCases; this.messaging = messaging; this.mailSender = mailSender; this.eventPublisher = eventPublisher; }
+    public NotificationService(NotificationRepository notifications, CaseReportRepository reports, RehabilitationActivityRepository activities, RehabilitationCaseRepository rehabilitationCases, UserRepository users, SimpMessagingTemplate messaging, JavaMailSender mailSender, ApplicationEventPublisher eventPublisher) { this.notifications = notifications; this.reports = reports; this.activities = activities; this.rehabilitationCases = rehabilitationCases; this.users = users; this.messaging = messaging; this.mailSender = mailSender; this.eventPublisher = eventPublisher; }
 
     @EventListener
     @Transactional
-    public void onNewCase(NewCaseReportedEvent event) { if (event.getSource() instanceof CaseReport report) { if (report.getReporterId() != null) create(report.getReporterId(), NotificationType.NEW_REPORT, "Report received", "Your report " + event.getCaseNumber() + " has been received.", event.getCaseId(), defaultEmail, urgent(report.getUrgencyLevel())); for (String configuredId : staffUserIds.split(",")) { try { create(Long.valueOf(configuredId.trim()), NotificationType.NEW_REPORT, "New report received", "A new case " + event.getCaseNumber() + " is ready for review.", event.getCaseId(), defaultEmail, urgent(report.getUrgencyLevel())); } catch (NumberFormatException ignored) { } } } }
+    public void onNewCase(NewCaseReportedEvent event) { if (event.getSource() instanceof CaseReport report) { if (report.getReporterId() != null) create(report.getReporterId(), NotificationType.NEW_REPORT, "Report received", "Your report " + event.getCaseNumber() + " has been received.", event.getCaseId(), defaultEmail, urgent(report.getUrgencyLevel())); notifyAdmins(event.getCaseId(), event.getCaseNumber(), "A new case is ready for review.", null); } }
 
     @EventListener
     @Transactional
@@ -38,7 +42,13 @@ public class NotificationService {
 
     @EventListener
     @Transactional
-    public void onStatusChanged(CaseStatusChangedEvent event) { if (event.getRecipientUserId() != null && !event.getRecipientUserId().equals(event.getActorId())) create(event.getRecipientUserId(), NotificationType.STATUS_CHANGED, "Case status updated", "Case " + event.getCaseNumber() + " is now " + event.getNewStatus().name().replace('_', ' ') + ".", event.getCaseId(), defaultEmail, urgent(event.getUrgency())); }
+    public void onStatusChanged(CaseStatusChangedEvent event) { if (event.getRecipientUserId() != null && !event.getRecipientUserId().equals(event.getActorId())) create(event.getRecipientUserId(), NotificationType.STATUS_CHANGED, "Case status updated", "Case " + event.getCaseNumber() + " is now " + event.getNewStatus().name().replace('_', ' ') + ".", event.getCaseId(), defaultEmail, urgent(event.getUrgency())); notifyAdmins(event.getCaseId(), event.getCaseNumber(), "Case " + event.getCaseNumber() + " was updated: " + event.getNewStatus().name().replace('_', ' ') + ".", event.getActorId()); }
+
+    private void notifyAdmins(Long caseId, String caseNumber, String message, Long excludedActor) {
+        users.findByRole(UserRole.ADMIN, org.springframework.data.domain.Pageable.unpaged()).getContent().stream()
+                .filter(user -> !user.getId().equals(excludedActor))
+                .forEach(user -> create(user.getId(), NotificationType.STATUS_CHANGED, "Case update", message, caseId, defaultEmail, false));
+    }
 
     @EventListener
     @Transactional
@@ -57,7 +67,18 @@ public class NotificationService {
 
     @SuppressWarnings("null")
     private Notification create(Long recipient, NotificationType type, String title, String message, Long caseId, String email, boolean sendEmail) { if (recipient == null) return null; Notification notification = new Notification(); notification.setRecipientUserId(recipient); notification.setType(type); notification.setTitle(title); notification.setMessage(message); notification.setRelatedCaseId(caseId); notification.setRead(false); Notification saved = notifications.save(notification); messaging.convertAndSend("/topic/notifications/" + recipient, NotificationResponse.from(saved)); if (sendEmail && email != null && !email.isBlank()) sendEmail(email, title, message); return saved; }
-    private void sendEmail(String recipient, String subject, String message) { SimpleMailMessage mail = new SimpleMailMessage(); mail.setFrom(mailFrom); mail.setTo(recipient); mail.setSubject(subject); mail.setText(message); mailSender.send(mail); }
+    private void sendEmail(String recipient, String subject, String message) {
+        try {
+            SimpleMailMessage mail = new SimpleMailMessage();
+            mail.setFrom(mailFrom);
+            mail.setTo(recipient);
+            mail.setSubject(subject);
+            mail.setText(message);
+            mailSender.send(mail);
+        } catch (Exception ex) {
+            log.error("Failed to send notification email to {}: {}", recipient, ex.getMessage(), ex);
+        }
+    }
     private boolean urgent(UrgencyLevel urgency) { return urgency == UrgencyLevel.HIGH || urgency == UrgencyLevel.CRITICAL; }
     private Notification owned(Long id, Long recipient) { 
         @SuppressWarnings("null")

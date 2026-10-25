@@ -1,7 +1,9 @@
 import {
   BadgeCheck,
   BriefcaseBusiness,
+  ChevronLeft,
   ChevronDown,
+  ChevronRight,
   ClipboardList,
   FileBarChart2,
   FileText,
@@ -11,13 +13,13 @@ import {
   Menu,
   Search,
   Settings,
-  ShieldCheck,
   Users,
   X,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import Logo from '../components/Logo';
 import NotificationBell from '../components/NotificationBell';
 import OnboardingTour from '../components/OnboardingTour';
 import PrivacyBanner from '../components/PrivacyBanner';
@@ -26,11 +28,12 @@ import { dashboardPathForRole } from '../utils/roles';
 const menu = [
   { label: 'Overview', icon: LayoutDashboard, roles: ['CITIZEN', 'OFFICER', 'NGO_STAFF', 'ADMIN'], destination: 'dashboard' },
   { label: 'My reports', icon: FileText, to: '/citizen/my-reports', roles: ['CITIZEN'] },
-  { label: 'Case reports', icon: FileText, to: '/cases', roles: ['OFFICER', 'NGO_STAFF', 'ADMIN'], tour: 'case-navigation' },
-  { label: 'Rehabilitation', icon: HeartHandshake, to: '/rehabilitation', roles: ['OFFICER', 'NGO_STAFF', 'ADMIN'] },
+  { label: 'Case reports', icon: FileText, to: '/cases', roles: ['OFFICER', 'ADMIN'], tour: 'case-navigation' },
+  { label: 'My rehabilitation cases', icon: HeartHandshake, to: '/rehabilitation', roles: ['NGO_STAFF', 'ADMIN'] },
   { label: 'Rehabilitation centres', icon: BriefcaseBusiness, to: '/rehabilitation-centers', roles: ['OFFICER', 'NGO_STAFF', 'ADMIN'] },
   { label: 'Notifications', icon: BadgeCheck, to: '/notifications', roles: ['OFFICER', 'NGO_STAFF', 'ADMIN'] },
   { label: 'User accounts', icon: Users, to: '/admin/users', roles: ['ADMIN'] },
+  { label: 'Inquiries & Volunteers', icon: HeartHandshake, to: '/admin/submissions', roles: ['ADMIN'] },
   { label: 'Pending approvals', icon: BadgeCheck, to: '/admin/dashboard#pending-approvals', roles: ['ADMIN'] },
   { label: 'Audit log', icon: ClipboardList, to: '/admin/audit-log', roles: ['ADMIN'] },
   { label: 'Export reports', icon: FileBarChart2, to: '/admin/reports-export', roles: ['ADMIN'] },
@@ -43,6 +46,7 @@ function routeFor(item, role) {
 
 export default function AppShell() {
   const [open, setOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [search, setSearch] = useState('');
   const { user, role, darkMode, pendingApprovals, logout } = useAuth();
@@ -73,13 +77,15 @@ export default function AppShell() {
 
   return (
     <div className={`min-h-screen text-neutral-900 transition-colors ${adminDark ? 'admin-dark bg-[#081f1e] text-slate-100' : 'bg-[#f6f8f8]'}`}>
-      <aside className={`fixed inset-y-0 left-0 z-30 flex w-64 flex-col px-5 py-6 text-white shadow-xl transition-transform lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'} ${adminDark ? 'bg-[#061a19]' : 'bg-[#0b4f4b]'}`}>
-        <Link to={dashboardPathForRole(role)} className="flex items-center gap-3 px-2">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-accent text-teal-950"><ShieldCheck size={23} /></span>
-          <span><strong className="block tracking-tight">CLRMS</strong><small className="text-[10px] uppercase tracking-[.18em] text-teal-200">Care & protection</small></span>
-        </Link>
-        <p className="mt-10 px-3 text-[10px] font-bold uppercase tracking-[.17em] text-teal-200">Workspace</p>
-        <nav className="mt-3 flex-1 space-y-1 overflow-y-auto" aria-label="Workspace navigation">
+      <aside className={`fixed inset-y-0 left-0 z-30 flex ${sidebarCollapsed ? 'w-20 px-4' : 'w-64 px-5'} flex-col py-6 text-white shadow-xl transition-all lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'} ${adminDark ? 'bg-[#061a19]' : 'bg-[#0b4f4b]'}`}>
+        <div className={`flex ${sidebarCollapsed ? 'flex-col' : 'items-center justify-between'} gap-2`}>
+          <Logo size="md" showText={!sidebarCollapsed} className="min-w-0 [&_strong]:text-white [&_small]:text-teal-200" />
+          <button type="button" aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-pressed={sidebarCollapsed} onClick={() => setSidebarCollapsed(collapsed => !collapsed)} className="hidden h-8 w-8 shrink-0 place-items-center rounded-lg text-teal-100 hover:bg-white/10 lg:grid">
+            {sidebarCollapsed ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}
+          </button>
+        </div>
+        {!sidebarCollapsed && <p className="mt-10 px-3 text-[10px] font-bold uppercase tracking-[.17em] text-teal-200">Workspace</p>}
+        <nav className={`${sidebarCollapsed ? 'mt-8' : 'mt-3'} flex-1 space-y-1 overflow-y-auto`} aria-label="Workspace navigation">
           {visibleMenu.map(({ label, icon: Icon, to, destination, tour }) => {
             const target = routeFor({ to, destination }, role);
             const active = label === 'Pending approvals'
@@ -88,23 +94,23 @@ export default function AppShell() {
                 ? location.pathname === target
                 : location.pathname === to || (to !== '/admin/dashboard#pending-approvals' && location.pathname.startsWith(`${to}/`));
             return (
-              <NavLink key={label} to={target} data-tour={tour} onClick={() => { setOpen(false); setProfileOpen(false); }} className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm transition ${active ? 'bg-white/15 font-semibold text-white' : 'text-teal-100 hover:bg-white/10'}`}>
+              <NavLink key={label} to={target} data-tour={tour} aria-label={sidebarCollapsed ? label : undefined} title={sidebarCollapsed ? label : undefined} onClick={() => { setOpen(false); setProfileOpen(false); }} className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm transition ${sidebarCollapsed ? 'justify-center px-0' : ''} ${active ? 'bg-white/15 font-semibold text-white' : 'text-teal-100 hover:bg-white/10'}`}>
                 <Icon size={18} />
-                <span className="flex-1">{label}</span>
-                {label === 'Pending approvals' && pendingApprovals > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-amber-300 px-1.5 text-[10px] font-extrabold text-teal-950">{pendingApprovals}</span>}
+                {!sidebarCollapsed && <span className="flex-1">{label}</span>}
+                {!sidebarCollapsed && label === 'Pending approvals' && pendingApprovals > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-amber-300 px-1.5 text-[10px] font-extrabold text-teal-950">{pendingApprovals}</span>}
               </NavLink>
             );
           })}
         </nav>
         <div className="space-y-2 border-t border-white/15 pt-4">
-          <Link to="/settings" onClick={() => { setOpen(false); setProfileOpen(false); }} className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-teal-100 hover:bg-white/10"><Settings size={18} />Settings</Link>
-          <p className="px-3 pt-2 text-xs leading-5 text-teal-200">A safer tomorrow starts with noticing today.</p>
+          <Link to="/settings" aria-label={sidebarCollapsed ? 'Settings' : undefined} title={sidebarCollapsed ? 'Settings' : undefined} onClick={() => { setOpen(false); setProfileOpen(false); }} className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-teal-100 hover:bg-white/10 ${sidebarCollapsed ? 'justify-center px-0' : ''}`}><Settings size={18} />{!sidebarCollapsed && 'Settings'}</Link>
+          {!sidebarCollapsed && <p className="px-3 pt-2 text-xs leading-5 text-teal-200">A safer tomorrow starts with noticing today.</p>}
         </div>
       </aside>
 
       {open && <button type="button" aria-label="Close navigation menu" onClick={() => setOpen(false)} className="fixed inset-0 z-20 bg-slate-950/40 lg:hidden" />}
 
-      <div className="min-h-screen lg:pl-64">
+      <div className={`min-h-screen ${sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'}`}>
         <header className={`sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b px-4 sm:px-6 ${adminDark ? 'border-[#2a514d] bg-[#102b2a]' : 'border-slate-100 bg-white/95 backdrop-blur'}`}>
           <button aria-label={open ? 'Close sidebar' : 'Open sidebar'} aria-expanded={open} onClick={() => setOpen(!open)} className={`rounded-lg p-2 transition lg:hidden ${adminDark ? 'text-slate-300 hover:bg-white/10' : 'text-slate-500 hover:bg-slate-100'}`}>
             {open ? <X size={20} /> : <Menu size={20} />}
@@ -133,9 +139,9 @@ export default function AppShell() {
           {['OFFICER', 'NGO_STAFF', 'ADMIN'].includes(role) && <PrivacyBanner />}
           <div data-tour="dashboard-overview"><Outlet /></div>
         </main>
-        <footer className={`px-5 py-5 text-xs sm:px-8 ${adminDark ? 'text-slate-400' : 'text-slate-400'}`}>
-          <Link to="/privacy-policy" className="hover:text-teal-700">Privacy & data handling</Link>
-          <span className="mx-2">·</span>CLRMS · Protecting childhood, strengthening communities
+        <footer className={`flex flex-wrap items-center justify-between gap-4 px-5 py-5 text-xs sm:px-8 ${adminDark ? 'text-slate-400' : 'text-slate-400'}`}>
+          <Logo size="md" showText />
+          <span><Link to="/privacy-policy" className="hover:text-teal-700">Privacy & data handling</Link><span className="mx-2">·</span>Protecting childhood, strengthening communities</span>
         </footer>
       </div>
       <OnboardingTour key={location.pathname} role={role} pathname={location.pathname} />

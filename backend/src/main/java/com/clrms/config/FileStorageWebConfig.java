@@ -13,7 +13,8 @@ public class FileStorageWebConfig implements WebMvcConfigurer {
     private final String storageLocation;
 
     public FileStorageWebConfig(@Value("${app.storage-dir:uploads}") String storageDirectory) {
-        storageLocation = Paths.get(storageDirectory).toAbsolutePath().normalize().toUri().toString();
+        String uri = Paths.get(storageDirectory).toAbsolutePath().normalize().toUri().toString();
+        storageLocation = uri.endsWith("/") ? uri : uri + "/";
     }
 
     @Override

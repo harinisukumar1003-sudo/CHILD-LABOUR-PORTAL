@@ -2,12 +2,14 @@ import { Link } from 'react-router-dom';
 import { ShieldX } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { dashboardPathForRole } from '../utils/roles';
+import Logo from '../components/Logo';
 
 export default function Forbidden() {
   const { role } = useAuth();
   return (
     <main className="grid min-h-[65vh] place-items-center">
       <section className="w-full max-w-xl rounded-3xl border border-amber-200 bg-white p-8 text-center shadow-xl shadow-amber-900/5 sm:p-10">
+        <Logo size="lg" className="mx-auto" />
         <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-amber-50 text-amber-700"><ShieldX size={27} /></span>
         <p className="mt-6 text-xs font-bold uppercase tracking-[.18em] text-amber-700">Access restricted · 403</p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#0b4f4b]">This area isn’t part of your workspace.</h1>

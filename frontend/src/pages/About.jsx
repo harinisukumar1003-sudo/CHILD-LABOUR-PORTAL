@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import Logo from '../components/Logo';
 import PublicNavbar from '../components/PublicNavbar';
 import { motion } from 'framer-motion';
 import {
-  ShieldCheck,
   Heart,
   Users,
   BarChart3,
@@ -15,6 +15,7 @@ import {
   Phone,
   Mail,
   ArrowRight,
+  UserRound,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
@@ -114,7 +115,11 @@ const TeamCard = ({ name, role, delay }) => (
     viewport={{ once: true, margin: '-100px' }}
     className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
   >
-    <div className="aspect-square bg-gradient-to-br from-[#0b4f4b] to-[#0d6e68]" />
+    <div className="flex aspect-square items-center justify-center bg-gradient-to-br from-[#0b4f4b] to-[#0d6e68]">
+      <span className="grid h-28 w-28 place-items-center rounded-full bg-white/90 text-[#0b4f4b] shadow-inner ring-4 ring-white/20">
+        <UserRound size={56} strokeWidth={1.6} aria-hidden="true" />
+      </span>
+    </div>
     <div className="p-6">
       <p className="font-bold text-[#0b4f4b]">{name}</p>
       <p className="text-sm text-slate-600">{role}</p>
@@ -169,7 +174,8 @@ const ContactForm = () => {
       toast.success("Message sent! We'll get back to you soon.");
       setTimeout(() => setSubmitted(false), 3000);
     } catch (error) {
-      toast.error('Failed to send message. Please try again.');
+      const msg = error.response?.data?.message || 'Failed to send message. Please try again.';
+      toast.error(msg);
       console.error('Contact form error:', error);
     } finally {
       setLoading(false);
@@ -516,10 +522,10 @@ export default function About() {
 
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { name: 'Dr. Priya Sharma', role: 'Executive Director' },
-              { name: 'Rajesh Kumar', role: 'Head of Operations' },
-              { name: 'Ananya Desai', role: 'Technology Lead' },
-              { name: 'Vikram Singh', role: 'Rehabilitation Lead' },
+              { name: 'Dr. Priya Devi', role: 'Executive Director' },
+              { name: 'S. Karthikeyan', role: 'Head of Operations' },
+              { name: 'K. Kavitha', role: 'Technology Lead' },
+              { name: 'M. Saravanan', role: 'Rehabilitation Lead' },
             ].map((member, index) => (
               <TeamCard key={index} name={member.name} role={member.role} delay={index * 0.1} />
             ))}
@@ -548,7 +554,7 @@ export default function About() {
               icon={Heart}
               title="Volunteer"
               description="Join our field teams, offer counselling, or help with rehabilitation programs."
-              link="#contact-form"
+              link="/volunteer"
               cta="Learn More"
               delay={0.1}
             />
@@ -556,7 +562,7 @@ export default function About() {
               icon={Users}
               title="Partner With Us"
               description="NGOs, government agencies, and businesses: let's work together for greater impact."
-              link="#contact-form"
+              link="/partner-with-us"
               cta="Partner Now"
               delay={0.2}
             />
@@ -640,15 +646,7 @@ export default function About() {
         <div className="mx-auto max-w-7xl px-5 py-12 sm:px-10">
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-300 text-[#0b4f4b]">
-                  <ShieldCheck size={21} />
-                </span>
-                <span>
-                  <strong className="block text-white">CLRMS</strong>
-                  <small className="text-[10px] uppercase tracking-[.18em]">Care & protection</small>
-                </span>
-              </div>
+              <Logo size="md" showText className="[&_strong]:text-white [&_small]:text-teal-200" />
               <p className="mt-4 text-sm">
                 Fighting child labour through technology, collaboration, and compassion.
               </p>
@@ -689,14 +687,14 @@ export default function About() {
                   </Link>
                 </li>
                 <li>
-                  <a href="#faq" className="hover:text-amber-300">
+                  <Link to="/faq" className="hover:text-amber-300">
                     FAQ
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a href="#blog" className="hover:text-amber-300">
+                  <Link to="/resources" className="hover:text-amber-300">
                     Resources
-                  </a>
+                  </Link>
                 </li>
               </ul>
             </div>

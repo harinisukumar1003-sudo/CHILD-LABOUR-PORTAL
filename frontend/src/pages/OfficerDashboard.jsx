@@ -28,31 +28,43 @@ import api from '../services/api';
 
 const statusLabels = {
   REPORTED: 'Reported',
-  UNDER_REVIEW: 'Under investigation',
-  ASSIGNED: 'Assigned',
+  UNDER_REVIEW: 'Under Review',
+  ASSIGNED_TO_OFFICER: 'Assigned to Officer',
   INVESTIGATING: 'Investigating',
-  RESCUED: 'Rescued',
-  REHABILITATION: 'Rehabilitation',
+  INVESTIGATION_COMPLETED: 'Investigation Completed',
+  REHABILITATION_REFERRED: 'Rehabilitation Referred',
+  NGO_ASSIGNED: 'NGO Assigned',
+  REHABILITATION_IN_PROGRESS: 'Rehabilitation in Progress',
+  REHABILITATION_COMPLETED: 'Rehabilitation Completed',
+  INVALID_COMPLAINT: 'Invalid Complaint',
   CLOSED: 'Closed',
   REJECTED: 'Rejected',
 };
 const statusStyles = {
   REPORTED: 'bg-sky-50 text-sky-700 ring-sky-100',
   UNDER_REVIEW: 'bg-amber-50 text-amber-800 ring-amber-100',
-  ASSIGNED: 'bg-violet-50 text-violet-700 ring-violet-100',
+  ASSIGNED_TO_OFFICER: 'bg-violet-50 text-violet-700 ring-violet-100',
   INVESTIGATING: 'bg-teal-50 text-teal-800 ring-teal-100',
-  RESCUED: 'bg-rose-50 text-rose-700 ring-rose-100',
-  REHABILITATION: 'bg-emerald-50 text-emerald-800 ring-emerald-100',
+  INVESTIGATION_COMPLETED: 'bg-indigo-50 text-indigo-800 ring-indigo-100',
+  REHABILITATION_REFERRED: 'bg-cyan-50 text-cyan-800 ring-cyan-100',
+  NGO_ASSIGNED: 'bg-blue-50 text-blue-800 ring-blue-100',
+  REHABILITATION_IN_PROGRESS: 'bg-emerald-50 text-emerald-800 ring-emerald-100',
+  REHABILITATION_COMPLETED: 'bg-green-50 text-green-800 ring-green-100',
+  INVALID_COMPLAINT: 'bg-orange-50 text-orange-800 ring-orange-100',
   CLOSED: 'bg-slate-100 text-slate-600 ring-slate-200',
   REJECTED: 'bg-red-50 text-red-700 ring-red-100',
 };
 const statusChartColors = {
   REPORTED: '#38bdf8',
   UNDER_REVIEW: '#f59e0b',
-  ASSIGNED: '#8b5cf6',
+  ASSIGNED_TO_OFFICER: '#8b5cf6',
   INVESTIGATING: '#0f766e',
-  RESCUED: '#f43f5e',
-  REHABILITATION: '#10b981',
+  INVESTIGATION_COMPLETED: '#4f46e5',
+  REHABILITATION_REFERRED: '#0891b2',
+  NGO_ASSIGNED: '#2563eb',
+  REHABILITATION_IN_PROGRESS: '#10b981',
+  REHABILITATION_COMPLETED: '#16a34a',
+  INVALID_COMPLAINT: '#ea580c',
   CLOSED: '#64748b',
   REJECTED: '#dc2626',
 };
@@ -64,11 +76,10 @@ const urgencyStyles = {
 };
 const transitions = {
   REPORTED: ['UNDER_REVIEW'],
-  UNDER_REVIEW: ['ASSIGNED', 'REJECTED'],
-  ASSIGNED: ['INVESTIGATING'],
-  INVESTIGATING: ['RESCUED', 'REJECTED'],
-  RESCUED: ['REHABILITATION'],
-  REHABILITATION: ['CLOSED'],
+  UNDER_REVIEW: ['ASSIGNED_TO_OFFICER', 'REJECTED'],
+  ASSIGNED_TO_OFFICER: ['INVESTIGATING'],
+  INVESTIGATING: ['INVESTIGATION_COMPLETED', 'INVALID_COMPLAINT'],
+  INVESTIGATION_COMPLETED: ['REHABILITATION_REFERRED'],
 };
 
 function getErrorMessage(error, fallback) {
@@ -205,6 +216,9 @@ export default function OfficerDashboard() {
   const [statusError, setStatusError] = useState('');
   const [savingStatus, setSavingStatus] = useState(false);
   const [notice, setNotice] = useState('');
+  const [visit, setVisit] = useState({ visitDate: '', outcome: '', observations: '', verificationResult: '', childFound: null, ageConfirmed: null, workActivityObserved: null, employerIdentified: null, childInDanger: null, guardianMet: null, actionTaken: '', followUpDate: '', declaration: false });
+  const [visitPhoto, setVisitPhoto] = useState('');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -264,6 +278,8 @@ export default function OfficerDashboard() {
     setNextStatus(transitions[caseItem.status]?.[0] || '');
     setRemarks('');
     setStatusError('');
+    setVisit({ visitDate: '', outcome: '', observations: '', verificationResult: '', childFound: null, ageConfirmed: null, workActivityObserved: null, employerIdentified: null, childInDanger: null, guardianMet: null, actionTaken: '', followUpDate: '', declaration: false });
+    setVisitPhoto('');
   };
 
   const submitStatusUpdate = async event => {
@@ -272,10 +288,18 @@ export default function OfficerDashboard() {
       setStatusError('Add a short case note to record this status update.');
       return;
     }
+    if (nextStatus === 'INVESTIGATION_COMPLETED' && (!visitPhoto || !visit.visitDate || !visit.outcome.trim() || !visit.observations.trim()
+      || !visit.verificationResult || ['childFound', 'ageConfirmed', 'workActivityObserved', 'employerIdentified', 'childInDanger', 'guardianMet'].some(key => visit[key] === null)
+      || !visit.actionTaken.trim() || !visit.declaration)) {
+      setStatusError('Complete the visit record, all checklist answers, upload a photo, and confirm the in-person declaration.');
+      return;
+    }
     setSavingStatus(true);
     setStatusError('');
     try {
-      await api.post(`/cases/${activeCase.id}/status`, { status: nextStatus, remarks: remarks.trim() });
+      const payload = { status: nextStatus, remarks: remarks.trim() };
+      if (nextStatus === 'INVESTIGATION_COMPLETED') Object.assign(payload, { ...visit, attachmentUrl: visitPhoto, declaration: 'I personally visited' });
+      await api.post(`/cases/${activeCase.id}/status`, payload);
       setActiveCase(null);
       setNotice(`${activeCase.caseNumber} was updated to ${statusLabels[nextStatus] || nextStatus}.`);
       await reloadSummary();
@@ -536,6 +560,18 @@ export default function OfficerDashboard() {
                 {(transitions[activeCase.status] || []).map(status => <option key={status} value={status}>{statusLabels[status] || status}</option>)}
               </select>
             </label>
+            {nextStatus === 'INVESTIGATION_COMPLETED' && <section className="space-y-3 rounded-xl border border-teal-100 bg-teal-50/50 p-4">
+              <div><h3 className="text-sm font-bold text-teal-950">In-person visit record</h3><p className="mt-1 text-xs leading-5 text-slate-600">Record the visit you made. The portal does not verify or rescue automatically.</p></div>
+              <label className="block text-xs font-semibold text-slate-700">Visit date<input type="date" required value={visit.visitDate} onChange={event => setVisit(current => ({ ...current, visitDate: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm" /></label>
+              <label className="block text-xs font-semibold text-slate-700">Outcome<textarea required value={visit.outcome} onChange={event => setVisit(current => ({ ...current, outcome: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white p-3 text-sm" rows={2} /></label>
+              <label className="block text-xs font-semibold text-slate-700">Observations<textarea required value={visit.observations} onChange={event => setVisit(current => ({ ...current, observations: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white p-3 text-sm" rows={2} /></label>
+              <label className="block text-xs font-semibold text-slate-700">Verification result<select required value={visit.verificationResult} onChange={event => setVisit(current => ({ ...current, verificationResult: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"><option value="">Choose result</option><option value="CONFIRMED">Concern observed during visit</option><option value="NOT_CONFIRMED">Concern not confirmed during visit</option><option value="INCONCLUSIVE">Unable to determine during visit</option></select></label>
+              <div className="grid gap-2 sm:grid-cols-2">{[['childFound', 'Child found'], ['ageConfirmed', 'Age confirmed'], ['workActivityObserved', 'Work activity observed'], ['employerIdentified', 'Employer identified'], ['childInDanger', 'Child in danger'], ['guardianMet', 'Guardian met']].map(([key, label]) => <label key={key} className="text-xs font-semibold text-slate-700">{label}<select required value={visit[key] === null ? '' : String(visit[key])} onChange={event => setVisit(current => ({ ...current, [key]: event.target.value === '' ? null : event.target.value === 'true' }))} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5"><option value="">Select</option><option value="true">Yes</option><option value="false">No</option></select></label>)}</div>
+              <label className="block text-xs font-semibold text-slate-700">Action taken<textarea required value={visit.actionTaken} onChange={event => setVisit(current => ({ ...current, actionTaken: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white p-3 text-sm" rows={2} /></label>
+              <label className="block text-xs font-semibold text-slate-700">Follow-up date (optional)<input type="date" value={visit.followUpDate} onChange={event => setVisit(current => ({ ...current, followUpDate: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm" /></label>
+              <label className="block text-xs font-semibold text-slate-700">Visit photo<input type="file" accept="image/jpeg,image/png,image/webp" required={!visitPhoto} disabled={uploadingPhoto} onChange={async event => { const file = event.target.files?.[0]; if (!file) return; const body = new FormData(); body.append('file', file); setUploadingPhoto(true); try { const result = await api.post(`/cases/${activeCase.id}/evidence/photos`, body); setVisitPhoto(result.data.data.fileUrl); setStatusError(''); } catch (uploadError) { setStatusError(getErrorMessage(uploadError, 'The visit photo could not be uploaded.')); } finally { setUploadingPhoto(false); } }} className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white p-2 text-xs" />{visitPhoto && <span className="mt-1 block text-emerald-700">Photo uploaded</span>}</label>
+              <label className="flex items-start gap-2 text-xs font-semibold text-slate-700"><input type="checkbox" checked={visit.declaration} onChange={event => setVisit(current => ({ ...current, declaration: event.target.checked }))} className="mt-0.5 accent-teal-700" />I personally visited this location.</label>
+            </section>}
             <label className="block text-sm font-semibold text-slate-700">
               Case note
               <textarea value={remarks} onChange={event => setRemarks(event.target.value)} rows={3} required placeholder="Briefly record what changed and any important next step…" className="mt-2 w-full resize-y rounded-xl border border-slate-200 px-3 py-3 text-sm font-normal outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-50" />
@@ -543,7 +579,7 @@ export default function OfficerDashboard() {
             {statusError && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700">{statusError}</p>}
             <div className="flex justify-end gap-2 pt-1">
               <button type="button" disabled={savingStatus} onClick={() => setActiveCase(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">Cancel</button>
-              <button type="submit" disabled={savingStatus || !nextStatus} className="inline-flex items-center gap-2 rounded-xl bg-[#0b4f4b] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#083f3c] disabled:opacity-60">
+              <button type="submit" disabled={savingStatus || uploadingPhoto || !nextStatus} className="inline-flex items-center gap-2 rounded-xl bg-[#0b4f4b] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#083f3c] disabled:opacity-60">
                 {savingStatus && <LoaderCircle size={16} className="animate-spin" />} Save update
               </button>
             </div>

@@ -7,7 +7,7 @@ React 18 single-page application using Vite, React Router 6, Tailwind CSS, React
 ```powershell
 cd frontend
 npm install
-$env:VITE_API_URL = "http://localhost:8080/api"
+$env:VITE_API_BASE_URL = "http://localhost:8080"
 npm run dev
 ```
 
@@ -54,3 +54,12 @@ The login page's local demo buttons fill these credentials:
 | Admin | `demo.admin@clrms.example` |
 
 The shared local demo password is `Demo@12345`. Override it with the `DEMO_PASSWORD` environment variable before starting the backend. Seeded accounts are only created when their email does not already exist.
+
+The demo profile also seeds one synthetic anonymous case for the public **Track a case** page. Use:
+
+| Field | Demo value |
+| --- | --- |
+| Case number | `CLR-2026-000001` |
+| Tracking code | `DEMO2026TRACK001` |
+
+This report is only created with the local demo profile and is reset when its in-memory database restarts.

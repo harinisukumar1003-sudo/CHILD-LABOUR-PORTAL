@@ -8,14 +8,11 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Past;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.web.multipart.MultipartFile;
-
 import java.time.LocalDate;
-import java.util.List;
 
 @Getter @Setter
 @ValidCaseReportSubmission
@@ -28,7 +25,6 @@ public class CaseReportRequest {
     @Size(max = 30)
     private String reporterPhone;
 
-    @Size(max = 160)
     @Size(max = 160)
     private String childName;
     @NotNull(message = "Approximate age is required")
@@ -43,8 +39,17 @@ public class CaseReportRequest {
     @NotBlank(message = "Location address is required")
     @Size(max = 2000)
     private String locationAddress;
+    @NotBlank(message = "Town or city is required")
+    @Size(min = 2, max = 120, message = "Town or city must be between 2 and 120 characters")
+    @Pattern(regexp = "^(?=.*\\p{L})[\\p{L} .-]+$", message = "Town or city may contain only letters, spaces, dots, and hyphens")
+    private String townOrCity;
     private Double latitude;
     private Double longitude;
+    @NotBlank(message = "Pincode is required")
+    @Pattern(regexp = "^[1-9][0-9]{5}$", message = "Pincode must be 6 digits and cannot start with 0")
+    private String pincode;
+    @Size(max = 150, message = "Landmark cannot exceed 150 characters")
+    private String landmark;
     @NotBlank(message = "District is required")
     @Size(max = 120)
     private String district;
@@ -54,14 +59,10 @@ public class CaseReportRequest {
     @NotBlank(message = "Incident description is required")
     @Size(min = 30, max = 4000, message = "Incident description must be at least 30 characters")
     private String incidentDescription;
-    @Size(max = 2000)
-    private String employerOrLocationDetails;
     @NotNull(message = "Date of incident is required")
     @Past(message = "Date of incident must be in the past")
-    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate dateOfIncident;
     private boolean anonymous;
     @NotNull(message = "Urgency level is required")
     private UrgencyLevel urgencyLevel;
-    private List<MultipartFile> files;
 }

@@ -2,6 +2,7 @@ package com.clrms.filter;
 
 import com.clrms.service.JwtTokenService;
 import com.clrms.entity.User;
+import com.clrms.entity.UserRole;
 import com.clrms.entity.UserStatus;
 import com.clrms.repository.UserRepository;
 import io.jsonwebtoken.Claims;
@@ -42,8 +43,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 User user = userId == null ? null
                         : users.findById(Objects.requireNonNull(Long.valueOf(userId))).orElse(null);
                 if (user != null && user.getStatus() == UserStatus.ACTIVE) {
+                    java.util.List<SimpleGrantedAuthority> authorities = new java.util.ArrayList<>();
+                    authorities.add(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
+                    if (user.getRole() == UserRole.NGO_OFFICIAL || user.getRole() == UserRole.NGO_STAFF) {
+                        if (user.getRole() != UserRole.NGO_OFFICIAL) authorities.add(new SimpleGrantedAuthority("ROLE_NGO_OFFICIAL"));
+                        if (user.getRole() != UserRole.NGO_STAFF) authorities.add(new SimpleGrantedAuthority("ROLE_NGO_STAFF"));
+                    }
                     var authentication = new UsernamePasswordAuthenticationToken(
-                            userId, null, List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())));
+                            userId, null, authorities);
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             } catch (JwtException | IllegalArgumentException exception) {

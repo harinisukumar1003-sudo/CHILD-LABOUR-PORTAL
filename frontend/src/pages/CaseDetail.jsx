@@ -10,10 +10,64 @@ import SensitiveValue from '../components/SensitiveValue';
 import { useAuth } from '../context/AuthContext';
 
 const labels = { REPORTED: 'Reported', UNDER_REVIEW: 'Under investigation', ASSIGNED: 'Assigned', INVESTIGATING: 'Investigating', RESCUED: 'Rescued', REHABILITATION: 'Rehabilitation', CLOSED: 'Closed' };
-const fallback = { id: 41, caseNumber: 'CLR-2026-00418', childName: 'Aarav K.', approxAge: 11, gender: 'Male', childDescription: 'Small build, school uniform seen in the mornings.', locationAddress: 'Shivaji Nagar, Pune', latitude: 18.5308, longitude: 73.8475, district: 'Pune Central', state: 'Maharashtra', incidentDescription: 'Seen working late evenings at a roadside food stall. A neighbour has noticed the child there for several weeks.', employerOrLocationDetails: 'Food stall near the bus depot', urgencyLevel: 'CRITICAL', status: 'REPORTED', createdAt: '2026-08-23T09:42:00Z', evidence: [{ id: 1, fileUrl: 'https://images.unsplash.com/photo-1494386346843-e12284507169?auto=format&fit=crop&w=900&q=80', fileType: 'IMAGE', uploadedAt: '2026-08-23T09:45:00Z' }] };
+const fallback = { id: 41, caseNumber: 'CLR-2026-00418', childName: 'Aarav K.', approxAge: 11, gender: 'Male', childDescription: 'Small build, school uniform seen in the mornings.', locationAddress: 'Shivaji Nagar, Pune', townOrCity: 'Pune', pincode: '411001', landmark: null, latitude: 18.5308, longitude: 73.8475, district: 'Pune', state: 'Maharashtra', incidentDescription: 'Seen working late evenings at a roadside food stall. A neighbour has noticed the child there for several weeks.', urgencyLevel: 'CRITICAL', status: 'REPORTED', createdAt: '2026-08-23T09:42:00Z', evidence: [{ id: 1, fileUrl: 'https://images.unsplash.com/photo-1494386346843-e12284507169?auto=format&fit=crop&w=900&q=80', fileType: 'IMAGE', uploadedAt: '2026-08-23T09:45:00Z' }] };
 function safeImage(url) { return url; }
 function Urgency({ level }) { const tone = { CRITICAL: 'urgent', HIGH: 'pending', MEDIUM: 'active', LOW: 'closed' }; return <Badge tone={tone[level] || 'active'}><span className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${level === 'CRITICAL' ? 'animate-pulse bg-red-500' : 'bg-current'}`} />{level}</Badge>; }
-function Overview({ report }) { return <div className="grid gap-6 xl:grid-cols-[1fr_380px]"><div className="space-y-6"><section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex items-center justify-between"><h2 className="font-bold text-slate-900">Reported details</h2><Urgency level={report.urgencyLevel} /></div><div className="mt-6 grid gap-5 sm:grid-cols-2"><Info label="Child" value={report.childName || 'Details protected'} /><Info label="Approximate age" value={report.approxAge ? `${report.approxAge} years` : 'Not provided'} /><Info label="Gender" value={report.gender || 'Not provided'} /><Info label="District" value={report.district || 'Not provided'} /><Info label="Location" value={report.locationAddress} wide /><Info label="Employer / location details" value={report.employerOrLocationDetails || 'Not provided'} wide /></div><div className="mt-6 border-t border-slate-100 pt-5"><p className="text-xs font-bold uppercase tracking-wider text-slate-400">Incident description</p><p className="mt-2 text-sm leading-7 text-slate-700">{report.incidentDescription}</p></div></section><section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-slate-100 px-6 py-5"><div><h2 className="font-bold">Location preview</h2><p className="mt-1 text-xs text-slate-500">Private case location · staff access only</p></div><MapPin size={19} className="text-rose-500" /></div><div className="h-72"><MapContainer center={[report.latitude || 18.52, report.longitude || 73.85]} zoom={13} scrollWheelZoom={false} className="h-full w-full"><TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" /><CircleMarker center={[report.latitude || 18.52, report.longitude || 73.85]} radius={13} pathOptions={{ color: '#c94b32', fillColor: '#f4a261', fillOpacity: .9 }} /></MapContainer></div></section></div><aside className="rounded-2xl border border-slate-200 bg-[#0b4f4b] p-6 text-white shadow-sm"><div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-teal-200"><ShieldCheck size={16} />Case snapshot</div><p className="mt-8 text-sm text-teal-100">Current status</p><p className="mt-1 text-2xl font-bold">{labels[report.status] || report.status}</p><div className="mt-8 space-y-4 border-t border-white/15 pt-5 text-sm"><p className="flex items-center justify-between"><span className="text-teal-200">Reported</span><b>{new Date(report.createdAt).toLocaleDateString('en-IN')}</b></p><p className="flex items-center justify-between"><span className="text-teal-200">District</span><b>{report.district}</b></p><p className="flex items-center justify-between"><span className="text-teal-200">Assigned to</span><b>{report.assignedOfficerId ? 'Ananya Rao' : 'Unassigned'}</b></p></div><div className="mt-10 rounded-xl bg-white/10 p-4"><p className="flex items-center gap-2 text-xs font-bold text-amber-200"><LockKeyhole size={14} />Confidential record</p><p className="mt-2 text-xs leading-5 text-teal-100">Internal notes and investigation details are never shown to the reporting citizen.</p></div></aside></div>; }
+function Overview({ report }) {
+  return (
+    <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
+      <div className="space-y-6">
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h2 className="font-bold text-slate-900">Reported details</h2>
+            <Urgency level={report.urgencyLevel} />
+          </div>
+          <div className="mt-6 grid gap-5 sm:grid-cols-2">
+            <Info label="Child" value={report.childName || 'Details protected'} />
+            <Info label="Approximate age" value={report.approxAge ? `${report.approxAge} years` : 'Not provided'} />
+            <Info label="Gender" value={report.gender || 'Not provided'} />
+            <Info label="District" value={report.district || 'Not provided'} />
+            <Info label="Town or city" value={report.townOrCity || 'Not specified'} />
+            <Info label="State" value={report.state || 'Not specified'} />
+            <Info label="Pincode" value={report.pincode || 'Not specified'} />
+            <Info label="Landmark" value={report.landmark || 'Not specified'} />
+            <Info label="Location address" value={report.locationAddress} wide />
+          </div>
+          <div className="mt-6 border-t border-slate-100 pt-5">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Incident description</p>
+            <p className="mt-2 text-sm leading-7 text-slate-700">{report.incidentDescription}</p>
+          </div>
+        </section>
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+            <div><h2 className="font-bold">Location preview</h2><p className="mt-1 text-xs text-slate-500">Private case location · staff access only</p></div>
+            <MapPin size={19} className="text-rose-500" />
+          </div>
+          <div className="h-72">
+            <MapContainer center={[report.latitude || 18.52, report.longitude || 73.85]} zoom={13} scrollWheelZoom={false} className="h-full w-full">
+              <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              {report.latitude != null && report.longitude != null && <CircleMarker center={[report.latitude, report.longitude]} radius={13} pathOptions={{ color: '#c94b32', fillColor: '#f4a261', fillOpacity: .9 }} />}
+            </MapContainer>
+          </div>
+        </section>
+      </div>
+      <aside className="rounded-2xl border border-slate-200 bg-[#0b4f4b] p-6 text-white shadow-sm">
+        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-teal-200"><ShieldCheck size={16} />Case snapshot</div>
+        <p className="mt-8 text-sm text-teal-100">Current status</p>
+        <p className="mt-1 text-2xl font-bold">{labels[report.status] || report.status}</p>
+        <div className="mt-8 space-y-4 border-t border-white/15 pt-5 text-sm">
+          <p className="flex items-center justify-between"><span className="text-teal-200">Reported</span><b>{new Date(report.createdAt).toLocaleDateString('en-IN')}</b></p>
+          <p className="flex items-center justify-between"><span className="text-teal-200">District</span><b>{report.district}</b></p>
+          <p className="flex items-center justify-between"><span className="text-teal-200">Assigned to</span><b>{report.assignedOfficerId ? 'Ananya Rao' : 'Unassigned'}</b></p>
+        </div>
+        <div className="mt-10 rounded-xl bg-white/10 p-4">
+          <p className="flex items-center gap-2 text-xs font-bold text-amber-200"><LockKeyhole size={14} />Confidential record</p>
+          <p className="mt-2 text-xs leading-5 text-teal-100">Internal notes and investigation details are never shown to the reporting citizen.</p>
+        </div>
+      </aside>
+    </div>
+  );
+}
 function Info({ label, value, wide }) { const { role } = useAuth(); return <div className={wide ? 'sm:col-span-2' : ''}><p className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</p><p className="mt-1.5 text-sm font-semibold text-slate-700">{label === 'Child' ? <SensitiveValue value={value} restricted={role === 'NGO_STAFF'} /> : value}</p></div>; }
 function Evidence({ report }) { const [selected, setSelected] = useState(null); const items = report.evidence?.length ? report.evidence : [{ id: 1, fileUrl: 'https://images.unsplash.com/photo-1494386346843-e12284507169?auto=format&fit=crop&w=900&q=80', fileType: 'IMAGE', uploadedAt: report.createdAt }, { id: 2, fileUrl: 'https://images.unsplash.com/photo-1489493585363-d69421e0edd3?auto=format&fit=crop&w=900&q=80', fileType: 'IMAGE', uploadedAt: report.createdAt }]; return <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex items-center justify-between"><div><h2 className="font-bold">Evidence gallery</h2><p className="mt-1 text-sm text-slate-500">{items.length} files attached to this report</p></div><Paperclip size={19} className="text-slate-400" /></div><div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{items.map((item, index) => <button key={item.id || index} onClick={() => setSelected(item)} className="group overflow-hidden rounded-xl border border-slate-200 text-left"><div className="relative aspect-[4/3] bg-slate-100">{item.fileType === 'IMAGE' ? <img src={safeImage(item.fileUrl)} alt="Uploaded case evidence" className="h-full w-full object-cover transition group-hover:scale-105" /> : <div className="grid h-full place-items-center text-slate-400"><PlayCircle size={36} /></div>}<span className="absolute bottom-2 left-2 rounded-md bg-slate-950/65 px-2 py-1 text-[10px] font-bold text-white">{item.fileType}</span></div><div className="flex items-center gap-2 p-3 text-xs font-semibold text-slate-600"><ImageIcon size={14} />Evidence {index + 1}<span className="ml-auto text-[10px] text-slate-400">{new Date(item.uploadedAt).toLocaleDateString('en-IN')}</span></div></button>)}</div>{selected && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/80 p-5" onClick={() => setSelected(null)}><button aria-label="Close lightbox" className="absolute right-6 top-6 text-white"><X size={26} /></button>{selected.fileType === 'IMAGE' ? <img src={safeImage(selected.fileUrl)} alt="Case evidence enlarged" className="max-h-[85vh] max-w-5xl rounded-xl object-contain shadow-2xl" /> : <div className="rounded-xl bg-white p-10 text-center"><PlayCircle className="mx-auto text-teal-700" size={48} /><p className="mt-3 font-bold">Video evidence</p></div>}</div>}</section>; }
 function Timeline({ history, report }) { if (history) return <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="font-bold">Case timeline</h2><p className="mt-1 text-sm text-slate-500">A complete record of status changes and decisions.</p><div className="mt-8"><CaseStatusTimeline entries={history} currentStatus={report.status} staffView /></div></section>; return null; }

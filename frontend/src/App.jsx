@@ -14,6 +14,8 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const CitizenDashboard = lazy(() => import('./pages/CitizenDashboard'));
 const PublicLanding = lazy(() => import('./pages/PublicLanding'));
 const About = lazy(() => import('./pages/About'));
+const HelpResources = lazy(() => import('./pages/HelpResources'));
+const CollaborationFormPage = lazy(() => import('./pages/CollaborationFormPage'));
 const ReportCase = lazy(() => import('./pages/ReportCase'));
 const TrackCase = lazy(() => import('./pages/TrackCase'));
 const MyReports = lazy(() => import('./pages/MyReports'));
@@ -31,6 +33,7 @@ const PrivacyDataHandling = lazy(() => import('./pages/PrivacyDataHandling'));
 const Forbidden = lazy(() => import('./pages/Forbidden'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const AdminUsers = lazy(() => import('./pages/AdminUsers'));
+const AdminSubmissions = lazy(() => import('./pages/AdminSubmissions'));
 const AdminReportsExport = lazy(() => import('./pages/AdminReportsExport'));
 const CitizenReportDetail = lazy(() => import('./pages/CitizenReportDetail'));
 const AccountProfile = lazy(() => import('./pages/AccountPages').then(module => ({ default: module.AccountProfile })));
@@ -68,6 +71,10 @@ function App() {
             <Routes>
             <Route path="/" element={<PublicLanding />} />
             <Route path="/about" element={<About />} />
+            <Route path="/faq" element={<HelpResources type="faq" />} />
+            <Route path="/resources" element={<HelpResources type="resources" />} />
+            <Route path="/volunteer" element={<CollaborationFormPage type="volunteer" />} />
+            <Route path="/partner-with-us" element={<CollaborationFormPage type="partnership" />} />
             <Route path="/contact" element={<About />} />
             <Route path="/report" element={<ReportCase />} />
             <Route path="/report-case" element={<ReportCase />} />
@@ -83,18 +90,22 @@ function App() {
                 <Route path="/403" element={<Forbidden />} />
                 <Route path="/profile" element={<AccountProfile />} />
                 <Route path="/settings" element={<AccountSettings />} />
-                <Route element={<RoleBasedRoute roles={['OFFICER', 'NGO_STAFF', 'ADMIN']} />}>
+                <Route element={<RoleBasedRoute roles={['OFFICER', 'ADMIN']} />}>
                   <Route path="/cases" element={<CaseManagement />} />
                   <Route path="/cases/:id" element={<CaseDetail />} />
                   <Route path="/notifications" element={<Notifications />} />
-                  <Route path="/rehabilitation" element={<RehabilitationManagement />} />
-                  <Route path="/rehabilitation/:id" element={<RehabilitationDetail />} />
-                  <Route path="/rehabilitation/follow-ups" element={<RehabilitationFollowUps />} />
-                  <Route path="/rehabilitation/centers" element={<RehabilitationCenters />} />
                   <Route path="/rehabilitation-centers" element={<RehabilitationCenters />} />
                   <Route element={<RoleBasedRoute roles={['OFFICER', 'ADMIN']} />}>
                     <Route path="/officer/dashboard" element={<Dashboard />} />
                   </Route>
+                </Route>
+                <Route element={<RoleBasedRoute roles={['NGO_STAFF', 'ADMIN']} />}>
+                  <Route path="/rehabilitation" element={<RehabilitationManagement />} />
+                  <Route path="/rehabilitation/:id" element={<RehabilitationDetail />} />
+                  <Route path="/rehabilitation/follow-ups" element={<RehabilitationFollowUps />} />
+                  <Route path="/rehabilitation/centers" element={<RehabilitationCenters />} />
+                  <Route path="/notifications" element={<Notifications />} />
+                  <Route path="/ngo/dashboard" element={<Dashboard />} />
                 </Route>
                 <Route element={<RoleBasedRoute roles={['CITIZEN']} />}>
                   <Route path="/my-reports" element={<MyReports />} />
@@ -102,11 +113,9 @@ function App() {
                   <Route path="/citizen/reports/:id" element={<CitizenReportDetail />} />
                   <Route path="/citizen/dashboard" element={<CitizenDashboard />} />
                 </Route>
-                <Route element={<RoleBasedRoute roles={['NGO_STAFF']} />}>
-                  <Route path="/ngo/dashboard" element={<Dashboard />} />
-                </Route>
                 <Route element={<RoleBasedRoute roles={['ADMIN']} />}>
                   <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                  <Route path="/admin/submissions" element={<AdminSubmissions />} />
                   <Route path="/admin/users" element={<AdminUsers />} />
                   <Route path="/admin/audit-log" element={<AdminAuditLog />} />
                   <Route path="/admin/reports-export" element={<AdminReportsExport />} />

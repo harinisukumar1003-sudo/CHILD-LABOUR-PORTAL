@@ -18,11 +18,13 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.validation.annotation.Validated;
 
 import java.time.LocalDate;
 import java.util.List;
 
 @RestController
+@Validated
 @RequestMapping("/api/reports")
 public class CaseReportController {
     private final CaseReportService service;
@@ -31,9 +33,11 @@ public class CaseReportController {
 
     @PostMapping(consumes = "multipart/form-data")
     @PreAuthorize("permitAll()")
-    public ResponseEntity<ApiResponse<CaseReportResponse>> create(@Valid @ModelAttribute CaseReportRequest request,
-                                                                    Authentication authentication) {
-        CaseReportResponse response = service.create(request, authentication);
+    public ResponseEntity<ApiResponse<CaseReportResponse>> create(
+            @Valid @RequestPart("report") CaseReportRequest request,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files,
+            Authentication authentication) {
+        CaseReportResponse response = service.create(request, files, authentication);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Report submitted", response));
     }
 
@@ -66,10 +70,11 @@ public class CaseReportController {
                                                          @RequestParam(required = false) LocalDate from,
                                                          @RequestParam(required = false) LocalDate to,
                                                          @RequestParam(defaultValue = "0") int page,
-                                                         @RequestParam(defaultValue = "20") int size) {
+                                                         @RequestParam(defaultValue = "20") int size,
+                                                         Authentication authentication) {
         int boundedSize = Math.min(Math.max(size, 1), 100);
         Pageable pageable = PageRequest.of(Math.max(page, 0), boundedSize, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return ApiResponse.success("Reports retrieved", service.search(status, urgency, district, from, to, pageable));
+        return ApiResponse.success("Reports retrieved", service.search(status, urgency, district, from, to, pageable, authentication));
     }
 
     @GetMapping("/{id}")
