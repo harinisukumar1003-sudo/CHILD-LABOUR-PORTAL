@@ -1,0 +1,1 @@
+export default function Select({ label, children, ...props }) { return <label className="block text-sm font-medium text-slate-700">{label}<select className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 outline-none focus:border-primary" {...props}>{children}</select></label>; }
