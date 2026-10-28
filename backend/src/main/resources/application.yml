@@ -2,9 +2,9 @@ spring:
   application:
     name: clrms-backend
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:3306/clrms_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:Hani}
+    url: "jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}?sslMode=REQUIRED"
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: update
