@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:8080';
+const configuredBaseUrl =
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_URL ||
+  'https://child-labour-backend1.onrender.com';
 const normalizedBaseUrl = configuredBaseUrl.replace(/\/+$/, '');
 export const API_BASE_URL = normalizedBaseUrl.endsWith('/api') ? normalizedBaseUrl : `${normalizedBaseUrl}/api`;
 
