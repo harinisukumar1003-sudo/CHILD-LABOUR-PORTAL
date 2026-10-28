@@ -1,0 +1,1 @@
+export default function FileUpload({ label = 'Supporting documents' }) { return <label className="block rounded-xl border-2 border-dashed border-slate-200 p-5 text-center text-sm text-slate-500 hover:border-primary">{label}<input type="file" className="mt-2 block w-full text-xs" /></label>; }
